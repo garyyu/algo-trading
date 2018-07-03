@@ -73,41 +73,68 @@ func main() {
 
 func updateOhlc() {
 
-	//query database if it's a new import.
+	var symbol string
 
-	rows, err := DBCon.Query("select count(id) as count from ohlc5min where Symbol='KEYBTC'")
-	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
-	}
-	defer rows.Close()
+	initialDataLoop:
+	for _,symbol = range SymbolList {
 
-	var count int // we "scan" the result in here
-	for rows.Next() {
-		err := rows.Scan(&count)
+		//query database if it's a new import symbol.
+		rows, err := DBCon.Query("select count(id) as count from ohlc5min where Symbol='" + symbol + "'")
 		if err != nil {
-			count = 0
+			panic(err.Error()) // proper error handling instead of panic in your app
 		}
-	}
-	fmt.Println("The local db existing records :", count)
 
-	if count == 0 {
-		getKlinesData(1000)
+		var count int // we "scan" the result in here
+		for rows.Next() {
+			err := rows.Scan(&count)
+			if err != nil {
+				count = 0
+			}
+		}
+		rows.Close()
+		//fmt.Println("The local db existing records :", count, " on symbol:", symbol)
+
+		if count == 0 {
+			getKlinesData(symbol, 1000)		// 1000*5 = 5000(mins) = 83 (hours) ~= 3.5 (days)
+			time.Sleep(10 * time.Millisecond)	// avoid being baned by server
+		//}else{
+		//	getKlinesData(symbol, 100)		// 100*5 = 500(mins) = 8.3 (hours)
+		//	time.Sleep(10 * time.Millisecond)	// avoid being baned by server
+		}else{
+			getKlinesData(symbol, 12)		// 12*5 = 60(mins) = 1 (hour)
+			time.Sleep(10 * time.Millisecond)	// avoid being baned by server
+		}
+
+		select {
+		case _ = <- routinesExitChan:
+			break initialDataLoop
+
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+
 	}
+
+	fmt.Printf("\nTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	// then we start a goroutine to get realtime data in intervals
 	ticker := minuteTicker()
+	var tickerCount = 0
 	loop:
 	for  {
 		select {
 		case _ = <- routinesExitChan:
 			break loop
 		case tick := <-ticker.C:
-			fmt.Printf("Tick: \t\t%s\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
+			tickerCount += 1
+			fmt.Printf("Tick: \t\t%s\t%d\n", time.Now().Format("2006-01-02 15:04:05.004005683"), tickerCount)
 			_, min, _ := tick.Clock()
 			if min % 5 == 0 {
 				time.Sleep(5 * time.Second) // wait 5 seconds to ensure server data ready.
 			}
-			getKlinesData(2)
+			for _,symbol = range SymbolList {
+				getKlinesData(symbol, 2)
+			}
 
 			// Update the ticker
 			ticker = minuteTicker()
@@ -120,7 +147,7 @@ func updateOhlc() {
 	fmt.Println("goroutine exited - updateOhlc")
 }
 
-func getKlinesId(symbol string, openTime time.Time) (int64,time.Time){
+func getKlineId(symbol string, openTime time.Time) (int64,time.Time){
 
 	rows, err := DBCon.Query("select id,insertTime from ohlc5min where Symbol='" + symbol + "' and OpenTime='" +
 					openTime.Format("2006-01-02 15:04:05") + " limit 1'")
@@ -137,7 +164,7 @@ func getKlinesId(symbol string, openTime time.Time) (int64,time.Time){
 	for rows.Next() {
 		err := rows.Scan(&id, &insertTime)
 		if err != nil {
-			level.Error(logger).Log("getKlinesId.err", err)
+			level.Error(logger).Log("getKlineId.err", err)
 			id = -1
 		}
 	}
@@ -147,25 +174,40 @@ func getKlinesId(symbol string, openTime time.Time) (int64,time.Time){
 	return id,insertTime
 }
 
-func getKlinesData(limit int){
-	kl, err := binanceSrv.Klines(binance.KlinesRequest{
-		Symbol:   "KEYBTC",
-		Interval: binance.FiveMinutes,
-		Limit:    limit,
-	})
-	if err != nil {
-		panic(err)
-	}
+func getKlinesData(symbol string, limit int){
 
-	for i, v := range kl {
-		fmt.Printf("%d %v\n", i, v)
-		id,insertTime := getKlinesId("KEYBTC", v.OpenTime)
-		if id<0 {
-			OhlcCreate("KEYBTC", "binance.com", *v)
-		}else{
-			// update it
-			OhlcUpdate(id, insertTime,"KEYBTC", "binance.com", *v)
+	var retry = 0
+	for {
+		retry += 1
+
+		kl, err := binanceSrv.Klines(binance.KlinesRequest{
+			Symbol:   symbol,
+			Interval: binance.FiveMinutes,
+			Limit:    limit,
+		})
+		if err != nil {
+			level.Error(logger).Log("getKlinesData.Symbol", symbol, "Err", err, "Retry", retry-1)
+			if retry >= 10 {
+				break
+			}
+			time.Sleep(1000 * time.Millisecond)
+			continue
 		}
+
+		fmt.Printf("%s - %s received %d klines\n",
+			time.Now().Format("2006-01-02 15:04:05.004005683"), symbol, len(kl))
+		for _, v := range kl {
+			//fmt.Printf("%d %v\n", i, v)
+			id, insertTime := getKlineId(symbol, v.OpenTime)
+			if id < 0 {
+				OhlcCreate(symbol, "binance.com", *v)
+			} else {
+				// update it
+				OhlcUpdate(id, insertTime, symbol, "binance.com", *v)
+			}
+		}
+
+		break
 	}
 }
 
