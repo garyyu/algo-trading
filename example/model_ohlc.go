@@ -33,22 +33,21 @@ func OhlcCreate(symbol string, exchangeName string, kline Kline) (ohldDblTbl Ohl
 		Symbol, OpenTime, Open, High, Low, Close, Volume, CloseTime,
 		QuoteAssetVolume, NumberOfTrades, TakerBuyBaseAssetVolume, TakerBuyQuoteAssetVolume,
 		exchangeName, insertTime
-	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())`
 	res, err := DBCon.Exec(query,
 		symbol,
-		kline.OpenTime,
+		kline.OpenTime.Format("2006-01-02 15:04:05"),
 		kline.Open,
 		kline.High,
 		kline.Low,
 		kline.Close,
 		kline.Volume,
-		kline.CloseTime,
+		kline.CloseTime.Format("2006-01-02 15:04:05"),
 		kline.QuoteAssetVolume,
 		kline.NumberOfTrades,
 		kline.TakerBuyBaseAssetVolume,
 		kline.TakerBuyQuoteAssetVolume,
 		exchangeName,
-		time.Now().UTC(),
 	)
 	if err != nil {
 		level.Error(logger).Log("DBCon.Exec", err)
@@ -72,6 +71,58 @@ func OhlcCreate(symbol string, exchangeName string, kline Kline) (ohldDblTbl Ohl
 		kline.TakerBuyQuoteAssetVolume,
 		exchangeName,
 		time.Now(),
+		time.Now(),
+	}, nil
+}
+
+func OhlcUpdate(id int64, insertTime time.Time, symbol string, exchangeName string, kline Kline) (ohldDblTbl OhlcDbTbl, err error) {
+
+	query := `REPLACE INTO ohlc5min (
+		id, Symbol, OpenTime, Open, High, Low, Close, Volume, CloseTime,
+		QuoteAssetVolume, NumberOfTrades, TakerBuyBaseAssetVolume, TakerBuyQuoteAssetVolume,
+		exchangeName, insertTime, updateTime
+	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())`
+	_, error := DBCon.Exec(query,
+		id,
+		symbol,
+		kline.OpenTime.Format("2006-01-02 15:04:05"),
+		kline.Open,
+		kline.High,
+		kline.Low,
+		kline.Close,
+		kline.Volume,
+		kline.CloseTime.Format("2006-01-02 15:04:05"),
+		kline.QuoteAssetVolume,
+		kline.NumberOfTrades,
+		kline.TakerBuyBaseAssetVolume,
+		kline.TakerBuyQuoteAssetVolume,
+		exchangeName,
+		insertTime,
+	)
+	if error != nil {
+		level.Error(logger).Log("DBCon.Exec", error)
+		return OhlcDbTbl{}, error
+	}
+
+	//idRet, _ := res.LastInsertId()
+	//level.Debug(logger).Log("DBCon.Exec-idRet", idRet)
+
+	return OhlcDbTbl{
+		id,
+		symbol,
+		kline.OpenTime,
+		kline.Open,
+		kline.High,
+		kline.Low,
+		kline.Close,
+		kline.Volume,
+		kline.CloseTime,
+		kline.QuoteAssetVolume,
+		kline.NumberOfTrades,
+		kline.TakerBuyBaseAssetVolume,
+		kline.TakerBuyQuoteAssetVolume,
+		exchangeName,
+		insertTime,
 		time.Now(),
 	}, nil
 }
