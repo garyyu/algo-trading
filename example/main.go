@@ -56,6 +56,7 @@ func main() {
 
 	go updateOhlc()
 
+	//strictly only for debug here when 'go updateOhlc()' is commented out
 	//go RoiRoutine()
 
 	fmt.Println("main is runing and waiting for interrupt")

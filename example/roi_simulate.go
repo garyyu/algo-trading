@@ -37,7 +37,11 @@ type RoiData struct {
 	Rank					 int		`json:"Rank"`
 	InvestPeriod			 float32	`json:"InvestPeriod"`
 	Klines 					 int		`json:"Klines"`
-	Roi						 float32	`json:"Roi"`
+	RoiD					 float32	`json:"RoiD"`
+	RoiS					 float32	`json:"RoiS"`
+	QuoteAssetVolume         float64	`json:"QuoteAssetVolume"`
+	NumberOfTrades           int		`json:"NumberOfTrades"`
+	OpenTime                 time.Time	`json:"OpenTime"`
 	EndTime                	 time.Time	`json:"EndTime"`
 }
 
@@ -168,13 +172,17 @@ loop:
 		case _ = <- routinesExitChan:
 			break loop
 		case tick := <-ticker.C:
+			ticker.Stop()
+
 			tickerCount += 1
 			fmt.Printf("RoiAnaTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
 			//hour, min, sec := tick.Clock()
 
 			PollKlines()
 
-			RoiSimulate(tickerCount)
+			RoiSimulate()
+
+			RoiReport()
 
 			// Update the ticker
 			ticker = minuteTicker()
@@ -204,7 +212,7 @@ func roiMinuteTicker() *time.Ticker {
 /*
  * ROI (Return Of Invest) Simulation
  */
-func RoiSimulate(tickerCount int) {
+func RoiSimulate() {
 
 	// allocate result 2D array
 	var roiList= make([][]RoiData, len(InvestPeriodList))
@@ -229,18 +237,23 @@ func RoiSimulate(tickerCount int) {
 				nowClose = v.Close
 			}
 		}
+		//fmt.Println("latest OpenTime=", nowOpenTime)
 
 		if nowClose == 0.0 || len(klinesMap) < 5 {
 			level.Error(logger).Log("RoiSimulate.Symbol", symbol, "nowClose", nowClose, "klinesMap", len(klinesMap))
+			continue
 		}
 
 		for j, N := range InvestPeriodList {
 
-			var Initial float64 = 10000.0     // in asset
-			var balanceBase float64 = Initial // in asset
-			var balanceQuote float64 = 0.0    // in btc
+			var Initial = 10000.0     // in asset
+			var balanceBase = Initial // in asset
+			var balanceQuote = 0.0    // in btc
 
-			var InitialOpen float64 = 0.0
+			var InitialOpen = 0.0
+			var InitialOpenTime= time.Time{}
+			var QuoteAssetVolume = 0.0
+			var NumberOfTrades = 0
 
 			// main algorithm
 			var klinesUsed= 0
@@ -249,12 +262,17 @@ func RoiSimulate(tickerCount int) {
 				t := nowOpenTime.Add(time.Duration(-(N - n)*5) * time.Minute).Unix()
 				kline, ok := klinesMap[t]
 				if !ok {
+					//fmt.Println(symbol,"N=",N,"n=",n,"kline missing @ time:", t, " on", -(N - n)*5)
 					continue
 				}
 
 				klinesUsed += 1
 				if InitialOpen == 0.0 {
 					InitialOpen = kline.Open
+				}
+
+				if InitialOpenTime.IsZero() {
+					InitialOpenTime = kline.OpenTime
 				}
 
 				sell := 0.0
@@ -274,17 +292,25 @@ func RoiSimulate(tickerCount int) {
 
 				balanceQuote += sell - buy
 				balanceBase += gain - (sell-buy)/kline.Close
+
+				QuoteAssetVolume += kline.QuoteAssetVolume
+				NumberOfTrades += kline.NumberOfTrades
 			}
 
 			// save the result
-			roi := (balanceBase*nowClose+balanceQuote)/(Initial*InitialOpen) - 1.0
+			roiD := (balanceBase*nowClose+balanceQuote)/(Initial*InitialOpen) - 1.0
+			roiS := nowClose/InitialOpen - 1.0
 			roiData := RoiData{
 				Symbol:       symbol,
 				Rank:         0,
 				InvestPeriod: float32(N) * 5.0 / 60.0,
 				Klines:       klinesUsed,
-				Roi:          float32(roi),
-				EndTime:      nowCloseTime,
+				RoiD:         float32(roiD),
+				RoiS:		  float32(roiS),
+				QuoteAssetVolume: 	QuoteAssetVolume,
+				NumberOfTrades: 	NumberOfTrades,
+				OpenTime:			InitialOpenTime,
+				EndTime:      		nowCloseTime,
 			}
 			roiList[j][i] = roiData
 		}
@@ -295,7 +321,7 @@ func RoiSimulate(tickerCount int) {
 
 		// Top 3 winners
 		sort.Slice(roiList[j], func(m, n int) bool {
-			return roiList[j][m].Roi > roiList[j][n].Roi
+			return roiList[j][m].RoiD > roiList[j][n].RoiD
 		})
 
 		for i := range SymbolList {
@@ -304,7 +330,7 @@ func RoiSimulate(tickerCount int) {
 				//fmt.Printf("RoiTop3Winer - %v\n", roiList[j][i])
 
 				// Insert to Database
-				InsertRoi(&roiList[j][i], tickerCount)
+				InsertRoi(&roiList[j][i])
 			}
 		}
 
@@ -318,7 +344,7 @@ func RoiSimulate(tickerCount int) {
 			//fmt.Printf("RoiTop3Loser - %v\n", roiList[j][i])
 
 			// Insert to Database
-			InsertRoi(&roiList[j][i], tickerCount)
+			InsertRoi(&roiList[j][i])
 		}
 	}
 }
@@ -326,20 +352,29 @@ func RoiSimulate(tickerCount int) {
 /*
  * Insert ROI result into Database
  */
-func InsertRoi(roiData *RoiData, tickerCount int){
+func InsertRoi(roiData *RoiData){
+
+	if roiData==nil || roiData.EndTime.IsZero() {
+		level.Warn(logger).Log("InsertRoi.roiData", roiData)
+		return
+	}
 
 	query := `INSERT INTO roi5min (
-				Symbol, Rank, InvestPeriod, Klines, Roi, EndTime, TickerCount
-			  ) VALUES (?,?,?,?,?,?,?)`
+				Symbol, Rank, InvestPeriod, Klines, RoiD, RoiS, QuoteAssetVolume, NumberOfTrades, 
+				OpenTime, EndTime, AnalysisTime
+			  ) VALUES (?,?,?,?,?,?,?,?,?,?,NOW())`
 
 	_, err := DBCon.Exec(query,
 					roiData.Symbol,
 					roiData.Rank,
 					roiData.InvestPeriod,
 					roiData.Klines,
-					roiData.Roi,
+					roiData.RoiD,
+					roiData.RoiS,
+					roiData.QuoteAssetVolume,
+					roiData.NumberOfTrades,
+					roiData.OpenTime,
 					roiData.EndTime,
-					tickerCount,
 				)
 
 	if err != nil {

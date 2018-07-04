@@ -40,12 +40,12 @@ initialDataLoop:
 		if count == 0 {
 			rowsNum,rowsNewNum = getKlinesData(symbol, 1000)	// 1000*5 = 5000(mins) = 83 (hours) ~= 3.5 (days)
 			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
-		}else{
-			rowsNum,rowsNewNum = getKlinesData(symbol, 100)		// 100*5 = 500(mins) = 8.3 (hours)
-			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
 		//}else{
-		//	rowsNum,rowsNewNum = getKlinesData(symbol, 12)			// 12*5 = 60(mins) = 1 (hour)
+		//	rowsNum,rowsNewNum = getKlinesData(symbol, 120)			// 120*5 = 600(mins) = 10 (hours)
 		//	time.Sleep(10 * time.Millisecond)						// avoid being baned by server
+		}else{
+			rowsNum,rowsNewNum = getKlinesData(symbol, 12)		// 12*5 = 60(mins) = 1 (hour)
+			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
 		}
 		totalQueryRet += rowsNum
 		totalQueryNewRet += rowsNewNum
@@ -68,6 +68,9 @@ initialDataLoop:
 
 	fmt.Printf("\nKlineTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
+	// now it's good time to start Roi analysis routine.
+	go RoiRoutine()
+
 	// then we start a goroutine to get realtime data in intervals
 	ticker := minuteTicker()
 	var tickerCount = 0
@@ -77,8 +80,10 @@ loop:
 		case _ = <- routinesExitChan:
 			break loop
 		case tick := <-ticker.C:
+			ticker.Stop()
+
 			tickerCount += 1
-			fmt.Printf("KlineTick: \t\t%s\t%d\n", time.Now().Format("2006-01-02 15:04:05.004005683"), tickerCount)
+			fmt.Printf("KlineTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
 			_, min, _ := tick.Clock()
 			if min % 5 == 0 {
 				time.Sleep(5 * time.Second) // wait 5 seconds to ensure server data ready.
@@ -153,7 +158,19 @@ func getKlinesData(symbol string, limit int) (int,int){
 			if retry >= 10 {
 				break
 			}
-			time.Sleep(1000 * time.Millisecond)
+
+			switch retry {
+			case 1:
+				time.Sleep(1 * time.Second)
+			case 2:
+				time.Sleep(3 * time.Second)
+			case 3:
+				time.Sleep(5 * time.Second)
+			case 4:
+				time.Sleep(10 * time.Second)
+			default:
+				time.Sleep(15 * time.Second)
+			}
 			continue
 		}
 
