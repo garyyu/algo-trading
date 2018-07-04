@@ -1,6 +1,6 @@
 package main
 
-var SymbolList = []string{
+var SymbolList = [...]string{
 
 	/* Volume: $[10M - 57M] */
 
