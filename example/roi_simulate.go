@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 )
 
 const MaxKlinesMapSize int = 1440	// Minutes
 
 var (
 	SymbolKlinesMapList []map[int64]KlineRo
-	InvestPeriodList = [...]int{6,12,36,72,120,600,1440}	// n*5 Mins
+	InvestPeriodList = [...]int{6,12,36,72,120,288,1440}	// n*5 Mins
 )
 
 
@@ -161,7 +162,7 @@ func RoiRoutine(){
 
 	InitKlines()
 
-	fmt.Printf("\nRoiAnaTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Printf("\nRoiAnTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	// start a goroutine to get realtime ROI analysis in 1 min interval
 	ticker := roiMinuteTicker()
@@ -175,7 +176,7 @@ loop:
 			ticker.Stop()
 
 			tickerCount += 1
-			fmt.Printf("RoiAnaTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
+			fmt.Printf("RoiAnTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
 			//hour, min, sec := tick.Clock()
 
 			PollKlines()
@@ -183,6 +184,11 @@ loop:
 			RoiSimulate()
 
 			RoiReport()
+
+			/*
+			 * Strictly limited ONLY for test !
+			 */
+			ProjectNew()
 
 			// Update the ticker
 			ticker = minuteTicker()
@@ -213,6 +219,8 @@ func roiMinuteTicker() *time.Ticker {
  * ROI (Return Of Invest) Simulation
  */
 func RoiSimulate() {
+
+	HuntList :=  make(map[string]bool)
 
 	// allocate result 2D array
 	var roiList= make([][]RoiData, len(InvestPeriodList))
@@ -317,25 +325,36 @@ func RoiSimulate() {
 	}
 
 	// Rank the ROI, to get Top 3 winners and Top 3 losers
-	for j := range InvestPeriodList {
+	for p := range InvestPeriodList {
+
+		// reverse the sequence
+		j := len(InvestPeriodList)-1-p
 
 		// Top 3 winners
 		sort.Slice(roiList[j], func(m, n int) bool {
 			return roiList[j][m].RoiD > roiList[j][n].RoiD
 		})
 
-		for i := range SymbolList {
+		for q := range SymbolList {
+
+			// reverse the sequence
+			i := len(SymbolList)-1-q
+
 			roiList[j][i].Rank = i + 1
 			if i < 3 {
 				//fmt.Printf("RoiTop3Winer - %v\n", roiList[j][i])
 
 				// Insert to Database
 				InsertRoi(&roiList[j][i])
+
+				if InvestPeriodList[j] <= 72 {	// [0.5 ~ 6.0] Hours
+					HuntList[roiList[j][i].Symbol] = true
+				}
 			}
 		}
 
 		// Top 3 losers
-		for i := len(SymbolList)-1; i >= len(SymbolList)-3; i-- {
+		for i := len(SymbolList)-3; i < len(SymbolList); i++ {
 			if i<0 {
 				continue
 			}
@@ -347,6 +366,9 @@ func RoiSimulate() {
 			InsertRoi(&roiList[j][i])
 		}
 	}
+
+	// Insert HuntList to Database
+	InsertHuntList(HuntList)
 }
 
 /*
@@ -383,6 +405,35 @@ func InsertRoi(roiData *RoiData){
 	}
 
 	//id, _ := res.LastInsertId()
+}
+
+/*
+ * Insert HuntList into Database
+ */
+func InsertHuntList(huntList map[string]bool){
+
+	sqlStr := "INSERT INTO hunt_list (Symbol, Time) VALUES "
+	var vals []interface{}
+
+	for symbol, hunt := range huntList {
+		if hunt {
+			sqlStr += "(?, NOW()),"
+			vals = append(vals, symbol)
+		}
+	}
+	//trim the last ,
+	sqlStr = strings.TrimSuffix(sqlStr, ",")
+
+	stmt, err := DBCon.Prepare(sqlStr)
+	if err != nil {
+		level.Error(logger).Log("DBCon.Prepare", err)
+		return
+	}
+	_, err2 := stmt.Exec(vals...)
+	if err2 != nil {
+		level.Error(logger).Log("DBCon.Exec", err2)
+		return
+	}
 }
 
 

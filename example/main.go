@@ -20,11 +20,23 @@ var (
 	logger 				log.Logger
 )
 
+func initialization(){
+
+	ProjectTrackIni()
+}
+
 func main() {
+
+	initialization()
 
 	logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
 	logger = level.NewFilter(logger, level.AllowAll())
 	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+
+	if len(string(os.Getenv("BINANCE_DB_USER")))==0 {
+		fmt.Println("before running it, please load env variables before using it. exited.")
+		return
+	}
 
 	var err error
 	DBCon, err = sql.Open("mysql",
@@ -58,6 +70,8 @@ func main() {
 
 	//strictly only for debug here when 'go updateOhlc()' is commented out
 	//go RoiRoutine()
+
+	go OrderBookRoutine()
 
 	fmt.Println("main is runing and waiting for interrupt")
 	<-interrupt

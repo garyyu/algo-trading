@@ -114,8 +114,9 @@ loop:
 
 func getKlineId(symbol string, openTime time.Time) (int64,time.Time,int){
 
-	rows, err := DBCon.Query("select id,insertTime,UpdateTimes from ohlc5min where Symbol='" + symbol + "' and OpenTime='" +
-		openTime.Format("2006-01-02 15:04:05") + " limit 1'")
+	rows, err := DBCon.Query("select id,insertTime,UpdateTimes from ohlc5min where Symbol='" +
+		symbol + "' and OpenTime='" +
+		openTime.Format("2006-01-02 15:04:05") + "' limit 1")
 
 	//level.Debug(logger).Log("getKlinesId.Query", openTime.Format("2006-01-02 15:04:05"))
 
