@@ -37,9 +37,52 @@ func ProjectManager(){
 		if !UpdateProjectRoi(&project){
 			fmt.Println("ProjectManager - Warning! UpdateProjectRoi fail.")
 		}
+
+
 	}
 	ProjectMutex.Unlock()
 
+}
+
+/*
+	Quit Conditions:
+	1、TotalLoss > 20%
+	2、TotalGain > 40%
+	3、Loss in latest 1 hour  				（N1HourPrice, N1HourRoi)
+	4、Loss or Gain < 5% in latest 3 hours   (N3HourPrice, N1HourRoi)
+	5、Loss or Gain < 5% in latest 6 hours 	 (N6HourPrice, N6HourRoi)
+	6、Over 12 Hours project
+	7、Manual Command：ForceQuit = True, Amount: 25%、50%、75%、100%、Default(100%)
+
+	Others:
+	1、For（1、3、4、5），add into BlackList for 2 hours
+	2、QuitProtect=True，no automatic quite；only ForceQuit = True can make project quit.
+ */
+func QuitDecisionMake(project *ProjectData) (bool,bool){
+
+	if project.ForceQuit {
+		return true,false	//quit w/o blacklist
+	}
+
+	if project.QuitProtect {
+		return false,false
+	}
+
+	if project.Roi <= -0.2{
+		return true,true	//quit w/ blacklist
+	}
+
+	if project.Roi >= 0.4 {
+		return true,false	//quite w/o blacklist
+	}
+
+	if project.CreateTime.Add(time.Hour * 12).Before(time.Now()) {
+		return true,false	//quite w/o blacklist
+	}
+
+
+
+	return false,false
 }
 
 /*

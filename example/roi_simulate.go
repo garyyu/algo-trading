@@ -134,72 +134,12 @@ func RoiSimulate() {
 
 		for j, N := range InvestPeriodList {
 
-			var Initial = 10000.0     // in asset
-			var balanceBase = Initial // in asset
-			var balanceQuote = 0.0    // in btc
-
-			var InitialOpen = 0.0
-			var InitialOpenTime= time.Time{}
-			var QuoteAssetVolume = 0.0
-			var NumberOfTrades = 0
-
-			// main algorithm
-			var klinesUsed= 0
-			for n := 1; n <= N; n++ {
-
-				t := nowOpenTime.Add(time.Duration(-(N - n)*5) * time.Minute).Unix()
-				kline, ok := klinesMap[t]
-				if !ok {
-					//fmt.Println(symbol,"N=",N,"n=",n,"kline missing @ time:", t, " on", -(N - n)*5)
-					continue
-				}
-
-				klinesUsed += 1
-				if InitialOpen == 0.0 {
-					InitialOpen = kline.Open
-				}
-
-				if InitialOpenTime.IsZero() {
-					InitialOpenTime = kline.OpenTime
-				}
-
-				sell := 0.0
-				buy := 0.0
-				gain := (kline.Close - kline.Open) / kline.Open * balanceBase
-				if gain > 0 {
-					sell = gain * kline.Close
-					if sell < MinOrderTotal { // note: $8 = 0.001btc on $8k/btc
-						sell = 0
-					}
-				} else if gain < 0 {
-					buy = math.Min(balanceQuote, -gain*kline.Close)
-					if buy < MinOrderTotal {  // note: $8 = 0.001btc on $8k/btc
-						buy = 0
-					}
-				}
-
-				balanceQuote += sell - buy
-				balanceBase += gain - (sell-buy)/kline.Close
-
-				QuoteAssetVolume += kline.QuoteAssetVolume
-				NumberOfTrades += kline.NumberOfTrades
-			}
-
-			// save the result
-			roiD := (balanceBase*nowClose+balanceQuote)/(Initial*InitialOpen) - 1.0
-			roiS := nowClose/InitialOpen - 1.0
-			roiData := RoiData{
-				Symbol:       symbol,
-				Rank:         0,
-				InvestPeriod: float32(N) * 5.0 / 60.0,
-				Klines:       klinesUsed,
-				RoiD:         float32(roiD),
-				RoiS:		  float32(roiS),
-				QuoteAssetVolume: 	QuoteAssetVolume,
-				NumberOfTrades: 	NumberOfTrades,
-				OpenTime:			InitialOpenTime,
-				EndTime:      		nowCloseTime,
-			}
+			roiData := CalcRoi(symbol,
+								N,
+								nowOpenTime,
+								nowCloseTime,
+								nowClose,
+								klinesMap)
 			roiList[j][i] = roiData
 		}
 	}
@@ -221,7 +161,7 @@ func RoiSimulate() {
 			i := len(SymbolList)-1-q
 
 			roiList[j][i].Rank = i + 1
-			if i < 3 {
+			if i < 3{
 				//fmt.Printf("RoiTop3Winer - %v\n", roiList[j][i])
 
 				// Insert to Database
@@ -249,6 +189,84 @@ func RoiSimulate() {
 
 	// Insert HuntList to Database
 	InsertHuntList(HuntList)
+}
+
+func CalcRoi(
+		symbol string,
+		N int,
+		nowOpenTime time.Time,
+		nowCloseTime time.Time,
+		nowClose float64,
+		klinesMap map[int64]KlineRo) RoiData{
+
+	var Initial = 10000.0     // in asset
+	var balanceBase = Initial // in asset
+	var balanceQuote = 0.0    // in btc
+
+	var InitialOpen = 0.0
+	var InitialOpenTime= time.Time{}
+	var QuoteAssetVolume = 0.0
+	var NumberOfTrades = 0
+
+	// main algorithm
+	var klinesUsed= 0
+	for n := 1; n <= N; n++ {
+
+		t := nowOpenTime.Add(time.Duration(-(N - n)*5) * time.Minute).Unix()
+		kline, ok := klinesMap[t]
+		if !ok {
+			//fmt.Println(symbol,"N=",N,"n=",n,"kline missing @ time:", t, " on", -(N - n)*5)
+			continue
+		}
+
+		klinesUsed += 1
+		if InitialOpen == 0.0 {
+			InitialOpen = kline.Open
+		}
+
+		if InitialOpenTime.IsZero() {
+			InitialOpenTime = kline.OpenTime
+		}
+
+		sell := 0.0
+		buy := 0.0
+		gain := (kline.Close - kline.Open) / kline.Open * balanceBase
+		if gain > 0 {
+			sell = gain * kline.Close
+			if sell < MinOrderTotal { // note: $8 = 0.001btc on $8k/btc
+				sell = 0
+			}
+		} else if gain < 0 {
+			buy = math.Min(balanceQuote, -gain*kline.Close)
+			if buy < MinOrderTotal {  // note: $8 = 0.001btc on $8k/btc
+				buy = 0
+			}
+		}
+
+		balanceQuote += sell - buy
+		balanceBase += gain - (sell-buy)/kline.Close
+
+		QuoteAssetVolume += kline.QuoteAssetVolume
+		NumberOfTrades += kline.NumberOfTrades
+	}
+
+	// save the result
+	roiD := (balanceBase*nowClose+balanceQuote)/(Initial*InitialOpen) - 1.0
+	roiS := nowClose/InitialOpen - 1.0
+	roiData := RoiData{
+		Symbol:       symbol,
+		Rank:         0,
+		InvestPeriod: float32(N) * 5.0 / 60.0,
+		Klines:       klinesUsed,
+		RoiD:         float32(roiD),
+		RoiS:		  float32(roiS),
+		QuoteAssetVolume: 	QuoteAssetVolume,
+		NumberOfTrades: 	NumberOfTrades,
+		OpenTime:			InitialOpenTime,
+		EndTime:      		nowCloseTime,
+	}
+
+	return roiData
 }
 
 /*
