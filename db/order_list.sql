@@ -6,7 +6,7 @@ create table order_list (
     IsDone	    tinyint NOT NULL DEFAULT 0, 
     Symbol	    varchar(16) NOT NULL,
     OrderID	    int(11) NOT NULL DEFAULT -1,
-    ClientOrderID   varchar(18) NOT NULL,
+    ClientOrderID   varchar(32) NOT NULL,
     Price    	    DOUBLE(20,8) NOT NULL DEFAULT 0,
     OrigQty    	    DOUBLE(20,8) NOT NULL DEFAULT 0,
     ExecutedQty     DOUBLE(20,8) NOT NULL DEFAULT 0,

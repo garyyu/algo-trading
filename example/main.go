@@ -8,7 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/garyyu/go-binance"
+	"bitbucket.org/garyyu/go-binance"
 	"os/signal"
 	"time"
 )

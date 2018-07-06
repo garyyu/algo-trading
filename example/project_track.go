@@ -4,7 +4,7 @@ import (
 	"time"
 	"github.com/go-kit/kit/log/level"
 	"math/rand"
-	"github.com/garyyu/go-binance"
+	"bitbucket.org/garyyu/go-binance"
 	"fmt"
 	"math"
 	"sync"
@@ -173,6 +173,7 @@ func ProjectNew(){
 			Symbol:      NewProject.Symbol,
 			Quantity:    quantity,
 			Price:       price,
+			NewClientOrderID:	NewProject.ClientOrderID,
 			Side:        binance.SideBuy,
 			TimeInForce: binance.GTC,
 			Type:        binance.TypeLimit,
@@ -203,6 +204,7 @@ func ProjectNew(){
 			ProjectID: NewProject.id,
 			executedOrder:binance.ExecutedOrder{
 				Symbol: NewProject.Symbol,
+				OrderID: NewProject.OrderID,
 				ClientOrderID: NewProject.ClientOrderID,
 				Price: NewProject.InitialPrice,
 				OrigQty: NewProject.InitialAmount,

@@ -3,7 +3,7 @@ package main
 
 import (
 	"time"
-	."github.com/garyyu/go-binance"
+	."bitbucket.org/garyyu/go-binance"
 	"github.com/go-kit/kit/log/level"
 )
 

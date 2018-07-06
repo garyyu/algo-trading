@@ -4,7 +4,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"time"
 	"fmt"
-	"github.com/garyyu/go-binance"
+	"bitbucket.org/garyyu/go-binance"
 )
 
 func updateOhlc() {

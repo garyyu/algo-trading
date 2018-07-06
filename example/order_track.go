@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/go-kit/kit/log/level"
 	"fmt"
-	"github.com/garyyu/go-binance"
+	"bitbucket.org/garyyu/go-binance"
 	"time"
 )
 
@@ -27,7 +27,7 @@ func QueryOrders(){
 
 		executedOrder, err := binanceSrv.QueryOrder(binance.QueryOrderRequest{
 			Symbol:     openOrder.executedOrder.Symbol,
-			OrigClientOrderID: openOrder.executedOrder.ClientOrderID,
+			OrderID: openOrder.executedOrder.OrderID,
 			RecvWindow: 5 * time.Second,
 			Timestamp:  time.Now(),
 		})
@@ -40,13 +40,15 @@ func QueryOrders(){
 		openOrder.executedOrder = *executedOrder
 
 		// check if this order is done
-		if !executedOrder.IsWorking {
+		if executedOrder.IsWorking {
 			openOrder.IsDone = true
 		}
 
-		UpdateOrder(&openOrder)
+		if !UpdateOrder(&openOrder){
+			fmt.Println("UpdateOrder - Failed. openOrder=", openOrder)
+		}
 
-		fmt.Println("QueryOrders - Result:", executedOrder)
+		//fmt.Println("QueryOrders - Result:", executedOrder)
 	}
 
 }
@@ -109,15 +111,17 @@ func InsertOrder(orderData *OrderData) int64{
 	}
 
 	query := `INSERT INTO order_list (
-				ProjectID, Symbol, ClientOrderID, Price, OrigQty, Status, TimeInForce, Type, Side
-			  ) VALUES (?,?,?,?,?,?,?,?,?)`
+				ProjectID, Symbol, OrderID, ClientOrderID, Price, OrigQty, Status, TimeInForce, Type, Side
+			  ) VALUES (?,?,?,?,?,?,?,?,?,?)`
 
+	executedOrder := &orderData.executedOrder
 	res, err := DBCon.Exec(query,
 		orderData.ProjectID,
-		orderData.executedOrder.Symbol,
-		orderData.executedOrder.ClientOrderID,
-		orderData.executedOrder.Price,
-		orderData.executedOrder.OrigQty,
+		executedOrder.Symbol,
+		executedOrder.OrderID,
+		executedOrder.ClientOrderID,
+		executedOrder.Price,
+		executedOrder.OrigQty,
 		"UNK","UNK","UNK","UNK",
 	)
 
@@ -142,22 +146,24 @@ func UpdateOrder(orderData *OrderData) bool{
 
 	executedOrder := &orderData.executedOrder
 
-	query := `UPDATE order_list SET OrderID=?, Price=?, OrigQty=?, ExecutedQty=?, Status=?, TimeInForce=?,
-				Type=?, Side=?, StopPrice=?, IcebergQty=?, Time=?, LastQueryTime=NOW() WHERE ClientOrderID=?`
+	query := `UPDATE order_list SET IsDone=?, ClientOrderID=?, Price=?, OrigQty=?, 
+				ExecutedQty=?, Status=?, TimeInForce=?, Type=?, Side=?, StopPrice=?,
+				IcebergQty=?, Time=?, LastQueryTime=NOW() WHERE OrderID=?`
 
 	res, err := DBCon.Exec(query,
-		executedOrder.OrderID,
+		orderData.IsDone,
+		executedOrder.ClientOrderID,
 		executedOrder.Price,
 		executedOrder.OrigQty,
 		executedOrder.ExecutedQty,
-		executedOrder.Status,
-		executedOrder.TimeInForce,
-		executedOrder.Type,
-		executedOrder.Side,
+		string(executedOrder.Status),
+		string(executedOrder.TimeInForce),
+		string(executedOrder.Type),
+		string(executedOrder.Side),
 		executedOrder.StopPrice,
 		executedOrder.IcebergQty,
 		executedOrder.Time,
-		executedOrder.ClientOrderID,
+		executedOrder.OrderID,
 	)
 
 	if err != nil {
@@ -177,8 +183,6 @@ func UpdateOrder(orderData *OrderData) bool{
  * 'Open' means in local database view. To get status, query the Binance server via API.
  */
 func getOpenOrderList() []OrderData {
-
-	fmt.Println("getOpenOrderList func enter")
 
 	rows, err := DBCon.Query("SELECT * FROM order_list WHERE IsDone=0 LIMIT 10")
 
@@ -200,9 +204,10 @@ rowLoopOpenOrder:
 		executedOrder := &orderData.executedOrder
 
 		err := rows.Scan(&orderData.id, &orderData.ProjectID, &orderData.IsDone,
-			&executedOrder.Symbol, &executedOrder.ClientOrderID, &executedOrder.Price,
-			&executedOrder.OrigQty, &executedOrder.ExecutedQty, &executedOrder.Status, &executedOrder.TimeInForce,
-			&executedOrder.Type, &executedOrder.Side, &executedOrder.StopPrice, &executedOrder.IcebergQty,
+			&executedOrder.Symbol, &executedOrder.OrderID, &executedOrder.ClientOrderID,
+			&executedOrder.Price, &executedOrder.OrigQty, &executedOrder.ExecutedQty,
+			&executedOrder.Status, &executedOrder.TimeInForce, &executedOrder.Type,
+			&executedOrder.Side, &executedOrder.StopPrice, &executedOrder.IcebergQty,
 			&transactTime, &executedOrder.IsWorking, &LastQueryTime)
 
 		if err != nil {
@@ -217,7 +222,7 @@ rowLoopOpenOrder:
 			orderData.LastQueryTime = LastQueryTime.Time
 		}
 
-		fmt.Println("getOpenOrderList - got OrderData:", orderData)
+		//fmt.Println("getOpenOrderList - got OrderData:", orderData)
 
 		// if already in open list
 		for _, existing := range OpenOrderList {
