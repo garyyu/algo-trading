@@ -4,10 +4,10 @@ import (
 	"time"
 	"github.com/go-kit/kit/log/level"
 	"math/rand"
-	"strconv"
 	"github.com/garyyu/go-binance"
 	"fmt"
 	"math"
+	"sync"
 )
 
 type ProjectData struct {
@@ -23,9 +23,11 @@ type ProjectData struct {
 	Roi				 		 float64	`json:"Roi"`
 	RoiS			 		 float64	`json:"RoiS"`
 	InitialPrice			 float64	`json:"InitialPrice"`
+	NowPrice			 	 float64	`json:"NowPrice"`
 	InitialAmount			 float64	`json:"InitialAmount"`
 	CreateTime               time.Time	`json:"CreateTime"`
 	TransactTime             time.Time	`json:"TransactTime"`
+	OrderStatus				 string 	`json:"OrderStatus"`
 	CloseTime                time.Time	`json:"CloseTime"`
 	IsClosed				 bool		`json:"IsClosed"`
 }
@@ -47,7 +49,8 @@ type BlacklistHunt struct {
 
 
 var (
-	aliveProjectList []ProjectData
+	ProjectMutex sync.RWMutex
+	AliveProjectList []ProjectData
 	globalBalanceQuote	float64
 )
 
@@ -57,25 +60,28 @@ const MinOrderTotal = 0.001		// $8 = 0.001btc on $8k/btc
 
 func ProjectTrackIni(){
 
-	aliveProjectList = make([]ProjectData, 0)
-	globalBalanceQuote = 0.002
+	AliveProjectList = make([]ProjectData, 0)
+	// update active project list
+	getAliveProjectList()
+
+	globalBalanceQuote = 0.0005
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
 func ProjectNew(){
 
-	fmt.Println("ProjectNew func enter")
+	CancelOpenOrders()
+
+	//fmt.Println("ProjectNew func enter")
+
+	ProjectMutex.RLock()
+	aliveProjects := len(AliveProjectList)
+	ProjectMutex.RUnlock()
 
 	// skip if already full, or run out of cash. note: $8 = 0.001btc on $8k/btc
-	if getAliveProjects() >= MaxTradeList || globalBalanceQuote < MinOrderTotal {
-		fmt.Println("ProjectNew - skip. full or run out of cash.")
-		return
-	}
-
-	// update active project list
-	aliveProjects := getAliveProjectList()
-	if aliveProjects >= MaxTradeList {
-		fmt.Println("ProjectNew - skip. full alive projects:", aliveProjects)
+	if aliveProjects >= MaxTradeList || globalBalanceQuote < MinOrderTotal {
+		fmt.Println("ProjectNew - skip. full or run out of cash. aliveProjects=",
+			aliveProjects, "globalBalanceQuote=", globalBalanceQuote)
 		return
 	}
 
@@ -93,7 +99,7 @@ func ProjectNew(){
 			}
 		}
 
-		ClientOrderID := time.Now().Format("20060102150405") + strconv.Itoa(rand.Intn(9999))
+		ClientOrderID := time.Now().Format("20060102150405") + fmt.Sprintf("%04d",rand.Intn(9999))
 		InitialBalance := globalBalanceQuote / float64(MaxTradeList-aliveProjects)
 
 		// create new project with hunt.Symbol
@@ -101,6 +107,7 @@ func ProjectNew(){
 			id:-1,
 			Symbol:hunt.Symbol,
 			ClientOrderID: ClientOrderID,
+			OrderStatus: string(binance.StatusNew),
 		}
 
 		// get latest price
@@ -124,11 +131,17 @@ func ProjectNew(){
 			}
 		}
 
+		// double check the price
+		if highestBid.Symbol != NewProject.Symbol || highestBid.Quantity <= 0{
+			level.Error(logger).Log("Symbol", NewProject.Symbol, "highestBid data exception!", highestBid)
+			continue
+		}
+
 		// Binance limit different precision for each asset
 		precision, ok := SymbolPrecision[NewProject.Symbol]
 		if !ok{
 			level.Error(logger).Log("Symbol", NewProject.Symbol, "missing precision data!")
-			return
+			continue
 		}
 
 		quantity := Round(InitialBalance/highestBid.Price, math.Pow10(precision.AmountPrecision))
@@ -142,14 +155,15 @@ func ProjectNew(){
 		NewProject.InitialAmount = quantity
 
 		if InitialBalance < MinOrderTotal {
-			level.Warn(logger).Log("globalBalanceQuote", globalBalanceQuote, "balance low! can't create new project.")
-			return
+			level.Warn(logger).Log("globalBalanceQuote", globalBalanceQuote,
+				"balance low! can't create new project for symbol:", NewProject.Symbol)
+			continue
 		}
 
 		// save into database
 		id := InsertProject(&NewProject)
 		if id<0 {
-			fmt.Println("Error! InsertProject fail. NewProject=", NewProject)
+			level.Error(logger).Log("Error! InsertProject fail. NewProject=", NewProject)
 			return
 		}
 		NewProject.id = id
@@ -165,7 +179,7 @@ func ProjectNew(){
 			Timestamp:   time.Now(),
 		})
 		if err != nil {
-			fmt.Println("ProjectNew - fail. error=", err)
+			level.Error(logger).Log("ProjectNew - fail. error=", err, "NewProject=", NewProject)
 			panic(err)
 		}
 		fmt.Println("ProjectNew - New Order:", newOrder)
@@ -181,13 +195,24 @@ func ProjectNew(){
 		NewProject.TransactTime  = newOrder.TransactTime
 
 		if !UpdateProjectOrderID(&NewProject) {
-			fmt.Println("ProjectNew - database update fail! NewProject=", NewProject)
+			level.Error(logger).Log("ProjectNew - database update fail! NewProject=", NewProject)
 		}
+
+		// insert data into order list
+		orderData := OrderData{
+			ProjectID: NewProject.id,
+			executedOrder:binance.ExecutedOrder{
+				Symbol: NewProject.Symbol,
+				ClientOrderID: NewProject.ClientOrderID,
+				Price: NewProject.InitialPrice,
+				OrigQty: NewProject.InitialAmount,
+			},
+		}
+		InsertOrder(&orderData)
 	}
 
-	fmt.Println("ProjectNew func left")
+	//fmt.Println("ProjectNew func left")
 }
-
 
 func getHuntList() *[]HuntList{
 
@@ -204,11 +229,14 @@ func getHuntList() *[]HuntList{
 
 	hunt := HuntList{id: -1}
 
+	ProjectMutex.RLock()
+
 	rowLoop:
 	for rows.Next() {
 		err := rows.Scan(&hunt.id, &hunt.Symbol, &hunt.ForceEnter, &hunt.Amount, &hunt.Time)
 		if err != nil {
 			level.Error(logger).Log("getHuntList.err", err)
+			break
 		}
 
 		// if duplicate one
@@ -219,7 +247,7 @@ func getHuntList() *[]HuntList{
 		}
 
 		// if already in active project list
-		for _, existing := range aliveProjectList {
+		for _, existing := range AliveProjectList {
 			if existing.Symbol == hunt.Symbol {
 				continue rowLoop
 			}
@@ -227,64 +255,78 @@ func getHuntList() *[]HuntList{
 
 		huntList = append(huntList, hunt)
 	}
+
+	ProjectMutex.RUnlock()
+
 	return &huntList
 }
 
-func getAliveProjects() int{
-
-	rows, err := DBCon.Query(
-		"select count(id) from project_list where IsClosed=0 and CloseTime is not NULL")
-
-	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
-	}
-	defer rows.Close()
-
-	var aliveProjects = -1	// if not found, rows is empty.
-	for rows.Next() {
-		err := rows.Scan(&aliveProjects)
-		if err != nil {
-			level.Error(logger).Log("getAliveProjects.err", err)
-		}
-	}
-	return aliveProjects
-}
+//func getAliveProjects() int{
+//
+//	rows, err := DBCon.Query(
+//		"select count(id) from project_list where IsClosed=0 and CloseTime is not NULL")
+//
+//	if err != nil {
+//		panic(err.Error()) // proper error handling instead of panic in your app
+//	}
+//	defer rows.Close()
+//
+//	var aliveProjects = -1	// if not found, rows is empty.
+//	for rows.Next() {
+//		err := rows.Scan(&aliveProjects)
+//		if err != nil {
+//			level.Error(logger).Log("getAliveProjects.err", err)
+//		}
+//	}
+//	return aliveProjects
+//}
 
 func getAliveProjectList() int{
 
 	rows, err := DBCon.Query(
-		"select * from project_list where IsClosed=0 and CloseTime is not NULL")
+		"select * from project_list where IsClosed=0 and CloseTime is NULL LIMIT 50")
 
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	defer rows.Close()
 
-	project := ProjectData{}
-
 	rowLoop:
 	for rows.Next() {
 
+		var transactTime NullTime
+		var closeTime NullTime
+
+		project := ProjectData{}
+
 		err := rows.Scan(&project.id, &project.Symbol, &project.ForceQuit, &project.QuitProtect,
 			&project.OrderID, &project.ClientOrderID, &project.InitialBalance, &project.BalanceBase,
-			&project.BalanceQuote, &project.Roi, &project.RoiS, &project.InitialPrice, &project.InitialAmount,
-			&project.CreateTime, &project.TransactTime, &project.CloseTime, &project.IsClosed)
+			&project.BalanceQuote, &project.Roi, &project.RoiS, &project.InitialPrice,
+			&project.NowPrice, &project.InitialAmount, &project.CreateTime, &transactTime,
+			&project.OrderStatus, &closeTime, &project.IsClosed)
 
 		if err != nil {
 			level.Error(logger).Log("getAliveProjectList.err", err)
 		}
 
+		if transactTime.Valid {
+			project.TransactTime = transactTime.Time
+		}
+		if closeTime.Valid {
+			project.CloseTime = closeTime.Time
+		}
+
 		// if already in active project list
-		for _, existing := range aliveProjectList {
+		for _, existing := range AliveProjectList {
 			if existing.id == project.id {
 				continue rowLoop
 			}
 		}
 
-		aliveProjectList = append(aliveProjectList, project)
+		AliveProjectList = append(AliveProjectList, project)
 	}
 
-	return len(aliveProjectList)
+	return len(AliveProjectList)
 }
 
 func getBlackList() *[]BlacklistHunt{
@@ -324,15 +366,18 @@ func InsertProject(project *ProjectData) int64{
 	}
 
 	query := `INSERT INTO project_list (
-				Symbol, ClientOrderID, InitialBalance, InitialPrice, InitialAmount, CreateTime
-			  ) VALUES (?,?,?,?,?,NOW())`
+				Symbol, ClientOrderID, InitialBalance, InitialPrice, NowPrice, 
+				InitialAmount, CreateTime, OrderStatus
+			  ) VALUES (?,?,?,?,?,?,NOW(),?)`
 
 	res, err := DBCon.Exec(query,
 			project.Symbol,
 			project.ClientOrderID,
 			project.InitialBalance,
 			project.InitialPrice,
+			project.InitialPrice,
 			project.InitialAmount,
+			project.OrderStatus,
 	)
 
 	if err != nil {
@@ -346,7 +391,7 @@ func InsertProject(project *ProjectData) int64{
 
 
 /*
- * Insert Project data into Database
+ * Update Project OrderID into Database
  */
 func UpdateProjectOrderID(project *ProjectData) bool{
 
@@ -373,13 +418,5 @@ func UpdateProjectOrderID(project *ProjectData) bool{
 		return true
 	}else{
 		return false
-	}
-}
-
-func Round(x, unit float64) float64 {
-	if unit==0{
-		return math.Round(x)
-	}else {
-		return math.Round(x*unit) / unit
 	}
 }

@@ -190,6 +190,8 @@ loop:
 			 */
 			ProjectNew()
 
+			QueryOrders()
+
 			// Update the ticker
 			ticker = minuteTicker()
 
@@ -288,12 +290,12 @@ func RoiSimulate() {
 				gain := (kline.Close - kline.Open) / kline.Open * balanceBase
 				if gain > 0 {
 					sell = gain * kline.Close
-					if sell < 0.00002 { // note: $0.1 = 0.0000125btc on $8k/btc
-						sell = 0.0
+					if sell < MinOrderTotal { // note: $8 = 0.001btc on $8k/btc
+						sell = 0
 					}
 				} else if gain < 0 {
 					buy = math.Min(balanceQuote, -gain*kline.Close)
-					if buy < 0.00002 { // note: $0.1 = 0.0000125btc on $8k/btc
+					if buy < MinOrderTotal {  // note: $8 = 0.001btc on $8k/btc
 						buy = 0
 					}
 				}

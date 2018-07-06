@@ -13,9 +13,11 @@ create table project_list (
     Roi     	    DOUBLE(20,8) NOT NULL DEFAULT 0,
     RoiS    	    DOUBLE(20,8) NOT NULL DEFAULT 0,
     InitialPrice    DOUBLE(20,8) NOT NULL DEFAULT 0,
+    NowPrice        DOUBLE(20,8) NOT NULL DEFAULT 0,
     InitialAmount   DOUBLE(20,8) NOT NULL DEFAULT 0,
     CreateTime      datetime NOT NULL,
     TransactTime    datetime DEFAULT NULL,
+    OrderStatus     varchar(32) NOT NULL,
     CloseTime       datetime DEFAULT NULL,
     IsClosed	    tinyint NOT NULL DEFAULT 0, 
     UNIQUE (ClientOrderID)

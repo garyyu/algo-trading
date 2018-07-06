@@ -41,8 +41,8 @@ initialDataLoop:
 			rowsNum,rowsNewNum = getKlinesData(symbol, 1000)	// 1000*5 = 5000(mins) = 83 (hours) ~= 3.5 (days)
 			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
 		//}else{
-		//	rowsNum,rowsNewNum = getKlinesData(symbol, 120)			// 120*5 = 600(mins) = 10 (hours)
-		//	time.Sleep(10 * time.Millisecond)						// avoid being baned by server
+			//rowsNum,rowsNewNum = getKlinesData(symbol, 120)		// 120*5 = 600(mins) = 10 (hours)
+			//time.Sleep(10 * time.Millisecond)						// avoid being baned by server
 		}else{
 			rowsNum,rowsNewNum = getKlinesData(symbol, 12)		// 12*5 = 60(mins) = 1 (hour)
 			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
@@ -114,7 +114,7 @@ loop:
 
 func getKlineId(symbol string, openTime time.Time) (int64,time.Time,int){
 
-	rows, err := DBCon.Query("select id,insertTime,UpdateTimes from ohlc5min where Symbol='" +
+	rows, err := DBCon.Query("SELECT id,insertTime,UpdateTimes FROM ohlc5min WHERE Symbol='" +
 		symbol + "' and OpenTime='" +
 		openTime.Format("2006-01-02 15:04:05") + "' limit 1")
 

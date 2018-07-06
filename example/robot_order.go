@@ -47,15 +47,24 @@ loop:
 			ticker.Stop()
 
 			tickerCount += 1
-			logStr := fmt.Sprintf("OrdBkTick: \t\t%s\t%d", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
+			fmt.Printf("OrdBkTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
 			//hour, min, sec := tick.Clock()
 
-			for _, symbol := range SymbolList {
-				getOrderBook(symbol, 10)
+			// only polling alive project list symbols and latest hunt_list symbols
+
+			huntList := getHuntList()
+
+			for _, hunt := range *huntList {
+				getOrderBook(hunt.Symbol, 10)
 			}
 
-			highestBid := getHighestBid("KEYBTC")
-			fmt.Printf("%s \tHighest Bid: id=%d, price=%.8f\n", logStr, highestBid.id, highestBid.Price)
+			ProjectMutex.RLock()
+			for _, project := range AliveProjectList {
+				getOrderBook(project.Symbol, 10)
+			}
+			ProjectMutex.RUnlock()
+
+			UpdateProjectNowPrice()
 
 			// Update the ticker
 			ticker = robotSecondTicker()
@@ -210,6 +219,57 @@ func getHighestBid(symbol string) OBData{
 	}
 	return obData
 }
+
+/*
+ * Insert Project data into Database
+ */
+func UpdateProjectNowPrice(){
+
+	//fmt.Println("UpdateProjectNowPrice func enter. aliveProjects=", len(AliveProjectList))
+
+	ProjectMutex.Lock()
+	defer ProjectMutex.Unlock()
+
+	for _, project := range AliveProjectList {
+
+		highestBid := getHighestBid(project.Symbol)
+		if highestBid.Time.Add(time.Second * 5).Before(time.Now()) {
+			continue
+		}
+		if highestBid.Symbol != project.Symbol || highestBid.Quantity <= 0{
+			level.Error(logger).Log("Symbol", project.Symbol, "highestBid data exception!", highestBid)
+			continue
+		}
+
+		// Update AliveProjectList NowPrice data
+		project.NowPrice = highestBid.Price
+		if project.InitialPrice>0 {
+			project.RoiS = project.NowPrice/project.InitialPrice - 1.0
+		}
+
+		query := `UPDATE project_list SET NowPrice=?, RoiS=? WHERE id=?`
+
+		res, err := DBCon.Exec(query,
+			project.NowPrice,
+			project.RoiS,
+			project.id,
+		)
+
+		if err != nil {
+			level.Error(logger).Log("DBCon.Exec", err)
+			continue
+		}
+
+		rowsAffected, _ := res.RowsAffected()
+		if rowsAffected <= 0 {
+			level.Error(logger).Log("UpdateProjectNowPrice - Fail for project id:",
+				project.id, "Symbol:", project.Symbol)
+		}
+	}
+
+	//fmt.Println("UpdateProjectNowPrice func left")
+}
+
 
 func robotSecondTicker() *time.Ticker {
 	// Return new ticker that triggers on the second

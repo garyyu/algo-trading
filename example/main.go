@@ -27,8 +27,6 @@ func initialization(){
 
 func main() {
 
-	initialization()
-
 	logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
 	logger = level.NewFilter(logger, level.AllowAll())
 	logger = log.With(logger, "time", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
@@ -47,6 +45,8 @@ func main() {
 		panic(err.Error())
 	}
 	defer DBCon.Close()
+
+	initialization()
 
 	hmacSigner := &binance.HmacSigner{
 		Key: []byte(os.Getenv("BINANCE_SECRET")),

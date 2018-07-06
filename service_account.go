@@ -10,7 +10,7 @@ import (
 
 type rawExecutedOrder struct {
 	Symbol        string  `json:"symbol"`
-	OrderID       int     `json:"orderId"`
+	OrderID       int64   `json:"orderId"`
 	ClientOrderID string  `json:"clientOrderId"`
 	Price         string  `json:"price"`
 	OrigQty       string  `json:"origQty"`
@@ -22,6 +22,7 @@ type rawExecutedOrder struct {
 	StopPrice     string  `json:"stopPrice"`
 	IcebergQty    string  `json:"icebergQty"`
 	Time          float64 `json:"time"`
+	IsWorking	  bool	  `json:"isWorking"`
 }
 
 func (as *apiService) NewOrder(or NewOrderRequest) (*ProcessedOrder, error) {
@@ -640,5 +641,6 @@ func executedOrderFromRaw(reo *rawExecutedOrder) (*ExecutedOrder, error) {
 		StopPrice:     stopPrice,
 		IcebergQty:    icebergQty,
 		Time:          t,
+		IsWorking:	   reo.IsWorking,
 	}, nil
 }

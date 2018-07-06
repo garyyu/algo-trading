@@ -297,19 +297,20 @@ type QueryOrderRequest struct {
 
 // ExecutedOrder represents data about executed order.
 type ExecutedOrder struct {
-	Symbol        string
-	OrderID       int
-	ClientOrderID string
-	Price         float64
-	OrigQty       float64
-	ExecutedQty   float64
-	Status        OrderStatus
-	TimeInForce   TimeInForce
-	Type          OrderType
-	Side          OrderSide
-	StopPrice     float64
-	IcebergQty    float64
-	Time          time.Time
+	Symbol        string		`json:"Symbol"`
+	OrderID       int64			`json:"OrderID"`
+	ClientOrderID string		`json:"ClientOrderID"`
+	Price         float64		`json:"Price"`
+	OrigQty       float64		`json:"OrigQty"`
+	ExecutedQty   float64		`json:"ExecutedQty"`
+	Status        OrderStatus	`json:"Status"`
+	TimeInForce   TimeInForce	`json:"TimeInForce"`
+	Type          OrderType		`json:"Type"`
+	Side          OrderSide		`json:"Side"`
+	StopPrice     float64		`json:"StopPrice"`
+	IcebergQty    float64		`json:"IcebergQty"`
+	Time          time.Time		`json:"Time"`
+	IsWorking	  bool			`json:"IsWorking"`
 }
 
 // QueryOrder returns data about existing order.
