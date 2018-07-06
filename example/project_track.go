@@ -398,7 +398,7 @@ func InsertProject(project *ProjectData) int64{
 func UpdateProjectOrderID(project *ProjectData) bool{
 
 	if project==nil || len(project.ClientOrderID)==0 || project.OrderID==0 || project.id<0 {
-		level.Warn(logger).Log("InsertProject.ProjectData", project)
+		level.Warn(logger).Log("UpdateProjectOrderID.ProjectData", project)
 		return false
 	}
 

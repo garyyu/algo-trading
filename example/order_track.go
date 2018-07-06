@@ -17,7 +17,7 @@ type OrderData struct {
 
 func QueryOrders(){
 
-	openOrderList := getOpenOrderList()
+	openOrderList := GetOrderList(false, -1)
 
 	for _, openOrder := range openOrderList {
 
@@ -180,14 +180,23 @@ func UpdateOrder(orderData *OrderData) bool{
 }
 
 /*
- * 'Open' means in local database view. To get status, query the Binance server via API.
+ * Get Order List from local database.
+ * 	- IsDone=1 means orders already done.
+ * 	- IsDone=0 means 'Open', in local database view, if status pending to update from Binance server.
+ *  To get status, query the Binance server via API.
  */
-func getOpenOrderList() []OrderData {
+func GetOrderList(isDone bool, projectId int64) []OrderData {
 
-	rows, err := DBCon.Query("SELECT * FROM order_list WHERE IsDone=0 LIMIT 10")
+	var query string
+	if isDone{
+		query = "SELECT * FROM order_list WHERE IsDone=1 and ProjectID=" + fmt.Sprint(projectId)
+	}else{
+		query = "SELECT * FROM order_list WHERE IsDone=0 LIMIT 50"
+	}
+	rows, err := DBCon.Query(query)
 
 	if err != nil {
-		level.Error(logger).Log("getOpenOrderList - DB.Query Fail. Err=", err)
+		level.Error(logger).Log("getOrderList - DB.Query Fail. Err=", err)
 		panic(err.Error())
 	}
 	defer rows.Close()
@@ -211,7 +220,7 @@ rowLoopOpenOrder:
 			&transactTime, &executedOrder.IsWorking, &LastQueryTime)
 
 		if err != nil {
-			level.Error(logger).Log("getOpenOrderList - Scan Fail. Err=", err)
+			level.Error(logger).Log("getOrderList - Scan Fail. Err=", err)
 			continue
 		}
 
@@ -222,7 +231,7 @@ rowLoopOpenOrder:
 			orderData.LastQueryTime = LastQueryTime.Time
 		}
 
-		//fmt.Println("getOpenOrderList - got OrderData:", orderData)
+		//fmt.Println("getOrderList - got OrderData:", orderData)
 
 		// if already in open list
 		for _, existing := range OpenOrderList {
@@ -238,11 +247,11 @@ rowLoopOpenOrder:
 	}
 
 	if err := rows.Err(); err != nil {
-		level.Error(logger).Log("getOpenOrderList - rows.Err=", err)
+		level.Error(logger).Log("getOrderList - rows.Err=", err)
 		panic(err.Error())
 	}
 
-	fmt.Println("getOpenOrderList - return", len(OpenOrderList), "orders")
+	fmt.Println("getOrderList - return", len(OpenOrderList), "orders. IsDone=", isDone)
 	return OpenOrderList
 }
 

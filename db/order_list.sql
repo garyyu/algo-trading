@@ -19,6 +19,5 @@ create table order_list (
     Time            datetime DEFAULT NULL,
     IsWorking	    tinyint NOT NULL DEFAULT 1,
     LastQueryTime   datetime DEFAULT NULL,
-    UNIQUE (ClientOrderID),
-    UNIQUE (ProjectID)
+    UNIQUE (ClientOrderID)
   ) comment 'order_list table';
