@@ -1,7 +1,7 @@
-drop table if exists ohlc5min;
+drop table if exists ohlc_1d;
 
 
-create table ohlc5min (
+create table ohlc_1d (
     id int primary key auto_increment,
     Symbol	varchar(16) NOT NULL,
     OpenTime  	datetime NOT NULL,
@@ -17,5 +17,6 @@ create table ohlc5min (
     TakerBuyQuoteAssetVolume	DOUBLE(20,8) NOT NULL DEFAULT 0,
     exchangeName varchar(16) NOT NULL,
     insertTime   datetime NOT NULL,
-    updateTime   datetime
-  ) comment 'ohlc5min table';
+    updateTime   datetime,
+    UpdateTimes  int(12) NOT NULL DEFAULT 0
+  ) comment 'ohlc_1d table';

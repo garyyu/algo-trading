@@ -5,6 +5,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"database/sql"
 	"time"
+	"math"
 )
 
 /*
@@ -73,16 +74,79 @@ func QuitDecisionMake(project *ProjectData) (bool,bool){
 	}
 
 	if project.Roi >= 0.4 {
-		return true,false	//quite w/o blacklist
+		return true,false	//quit w/o blacklist
 	}
 
 	if project.CreateTime.Add(time.Hour * 12).Before(time.Now()) {
-		return true,false	//quite w/o blacklist
+		return true,false	//quit w/o blacklist
 	}
 
+	roiData := GetLatestRoi(project.Symbol, 1.0)
+	if roiData!=nil && roiData.RoiD < 0{
+		return true,true	//quit w/ blacklist
+	}
 
+	roiData = GetLatestRoi(project.Symbol, 3.0)
+	if roiData!=nil && roiData.RoiD < 0.05{
+		return true,true	//quit w/ blacklist
+	}
+
+	roiData = GetLatestRoi(project.Symbol, 6.0)
+	if roiData!=nil && roiData.RoiD < 0.05{
+		return true,true	//quit w/ blacklist
+	}
 
 	return false,false
+}
+
+/*
+ * Back Window: for example 1Hour, 3Hour, 6Hour
+ */
+func GetLatestRoi(symbol string, backTimeWindow float64) *RoiData{
+
+	if backTimeWindow < 0.5 || backTimeWindow>120 {
+		fmt.Println("GetLatestRoi - Error! backTimeWindow out of range [0.5,120].", backTimeWindow)
+		return nil
+	}
+
+	i := 0
+	var s string
+	for i, s = range SymbolList {
+		if symbol == s {
+			break
+		}
+	}
+	if SymbolList[i] != symbol {
+		fmt.Println("GetLatestRoi - Fail to find symbol in SymbolList", symbol)
+		return nil
+	}
+
+	klinesMap := SymbolKlinesMapList[i]
+
+	var nowOpenTime= time.Time{}
+	var nowCloseTime= time.Time{}
+	var nowClose float64 = 0.0
+
+	// find the latest OpenTime
+	// TODO: just use Now() to get neareast 5 minutes
+	for _, v := range klinesMap {
+		if v.OpenTime.After(nowOpenTime) {
+			nowOpenTime = v.OpenTime
+			nowCloseTime = v.CloseTime
+			nowClose = v.Close
+		}
+	}
+
+	N := int(math.Round(backTimeWindow * 60 / 5))
+
+	roiData := CalcRoi(symbol,
+		N,
+		nowOpenTime,
+		nowCloseTime,
+		nowClose,
+		klinesMap)
+
+	return &roiData
 }
 
 /*

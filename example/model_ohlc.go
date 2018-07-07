@@ -28,9 +28,9 @@ type OhlcDbTbl struct {
 }
 
 
-func OhlcCreate(symbol string, exchangeName string, kline Kline) error {
+func OhlcCreate(symbol string, exchangeName string, kline Kline, table string) error {
 
-	query := `INSERT INTO ohlc5min (
+	query := "INSERT INTO " + table + ` (
 		Symbol, OpenTime, Open, High, Low, Close, Volume, CloseTime,
 		QuoteAssetVolume, NumberOfTrades, TakerBuyBaseAssetVolume, TakerBuyQuoteAssetVolume,
 		exchangeName, insertTime
@@ -60,9 +60,9 @@ func OhlcCreate(symbol string, exchangeName string, kline Kline) error {
 }
 
 func OhlcUpdate(id int64, insertTime time.Time, symbol string, exchangeName string,
-	kline Kline, updateTimes int) error {
+	kline Kline, updateTimes int, table string) error {
 
-	query := `REPLACE INTO ohlc5min (
+	query := "REPLACE INTO " + table + ` (
 		id, Symbol, OpenTime, Open, High, Low, Close, Volume, CloseTime,
 		QuoteAssetVolume, NumberOfTrades, TakerBuyBaseAssetVolume, TakerBuyQuoteAssetVolume,
 		exchangeName, insertTime, updateTime, UpdateTimes

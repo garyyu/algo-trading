@@ -66,7 +66,9 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	go updateOhlc()
+	go updateOhlc5Min()
+
+	go updateDailyOhlc()
 
 	//strictly only for debug here when 'go updateOhlc()' is commented out
 	//go RoiRoutine()

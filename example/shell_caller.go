@@ -21,7 +21,7 @@ func RoiReport() {
 	//	"max(u.Klines) as Klines,min(u.OpenTime) as OpenTime,max(u.EndTime) as EndTime," +
 	//	"max(u.QuoteVol) as QuoteVol,max(u.Txs) as Txs from (select id,Symbol,Rank," +
 	//	"round(InvestPeriod,1) as InvestPeriod,Klines,RoiD,RoiS,OpenTime,EndTime," +
-	//	"QuoteAssetVolume as QuoteVol,NumberOfTrades as Txs from roi5min " +
+	//	"QuoteAssetVolume as QuoteVol,NumberOfTrades as Txs from roi_5m " +
 	//	"where Rank>0 order by id desc limit 21) as u group by u.Symbol order by AverageRank;"
 	//
 	//shellExec(cmd, 0.0)
@@ -35,7 +35,7 @@ func shellExec(cmdOverwrite string, investPeriod float32){
 	}else {
 		cmd = "select id,Symbol,Rank,round(InvestPeriod,1) as InHours," +
 			"RoiD,RoiS,OpenTime,EndTime,QuoteAssetVolume as QuoteVol," +
-			"NumberOfTrades as Txs,Klines from roi5min where Rank>0 and InvestPeriod=" +
+			"NumberOfTrades as Txs,Klines from roi_5m where Rank>0 and InvestPeriod=" +
 			fmt.Sprintf("%.6f", investPeriod) +
 			" order by id desc limit 3;"
 	}

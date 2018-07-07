@@ -4,6 +4,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"time"
 	"fmt"
+	"bitbucket.org/garyyu/go-binance"
 )
 
 type KlineRo struct {
@@ -22,13 +23,17 @@ type KlineRo struct {
 	TakerBuyQuoteAssetVolume float64	`json:"TakerBuyQuoteAssetVolume"`
 }
 
-func InitKlines() {
+/*
+ * Initial Loading KLines from Local Database
+ */
+func InitLocalKlines(interval binance.Interval) {
 
-	fmt.Println("Initizing Klines from database ...\t\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Println("Initializing", string(interval),
+		"Klines from database ...\t\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume
-				FROM ohlc5min WHERE Symbol=? order by OpenTime desc limit 1440;`
+				FROM ohlc_` + string(interval) + " WHERE Symbol=? order by OpenTime desc limit 1440;"
 
 	// Initialize the global 'SymbolKlinesMapList'
 	totalSymbols := len(SymbolList)
@@ -69,22 +74,23 @@ func InitKlines() {
 		//fmt.Println("InitKlines - ", symbol, "got", rowsNum)
 		totalQueryRet += rowsNum
 	}
-	fmt.Println("InitKlines - ", len(SymbolList), "symbols", " average Klines number:",
+	fmt.Println("InitKlines", string(interval), " - ", len(SymbolList), "symbols", " average Klines number:",
 		float32(totalQueryRet)/float32(len(SymbolList)),
 		"\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 }
 
 /*
- * This is a periodic polling from database for latest Klines, in 1 minute interval.
+ * This is a periodic polling from local database for latest Klines, in 1 minute interval.
  */
-func PollKlines() {
+func PollKlines(interval binance.Interval) {
 
-	fmt.Println("Polling Klines from database ...\t\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Println("Polling" + string(interval) +
+		"Klines from database ...\t\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume
-				FROM ohlc5min WHERE Symbol=? order by OpenTime desc limit 2;`
+				FROM ohlc_` + string(interval) + " WHERE Symbol=? order by OpenTime desc limit 2;"
 
 	var totalQueryRet = 0
 	for i,symbol := range SymbolList {
@@ -125,7 +131,7 @@ func PollKlines() {
 		totalQueryRet += rowsNum
 	}
 
-	fmt.Println("PollKlines - ", len(SymbolList), "symbols", " average Klines number:",
+	fmt.Println("PollKlines", string(interval), " - ", len(SymbolList), "symbols", " average Klines number:",
 		float32(totalQueryRet)/float32(len(SymbolList)),
 		"\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 }

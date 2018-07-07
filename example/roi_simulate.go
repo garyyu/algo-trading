@@ -7,6 +7,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"bitbucket.org/garyyu/go-binance"
 )
 
 const MaxKlinesMapSize int = 1440	// Minutes
@@ -35,7 +36,7 @@ type RoiData struct {
  */
 func RoiRoutine(){
 
-	InitKlines()
+	InitLocalKlines(binance.FiveMinutes)
 
 	fmt.Printf("\nRoiAnTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
@@ -54,7 +55,7 @@ loop:
 			fmt.Printf("RoiAnTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
 			//hour, min, sec := tick.Clock()
 
-			PollKlines()
+			PollKlines(binance.FiveMinutes)
 
 			RoiSimulate()
 
@@ -279,7 +280,7 @@ func InsertRoi(roiData *RoiData){
 		return
 	}
 
-	query := `INSERT INTO roi5min (
+	query := `INSERT INTO roi_5m (
 				Symbol, Rank, InvestPeriod, Klines, RoiD, RoiS, QuoteAssetVolume, NumberOfTrades, 
 				OpenTime, EndTime, AnalysisTime
 			  ) VALUES (?,?,?,?,?,?,?,?,?,?,NOW())`

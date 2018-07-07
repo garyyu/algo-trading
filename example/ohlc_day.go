@@ -1,17 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"time"
+	"fmt"
 	"bitbucket.org/garyyu/go-binance"
 )
 
 /*
- * KLines Data Updating. 5Min Lines
+ * Daily KLines
  */
-func updateOhlc5Min() {
+func updateDailyOhlc() {
 
-	interval := binance.FiveMinutes
+	interval := binance.Day
 
 	InitialKlines(interval)
 
@@ -21,11 +21,8 @@ func updateOhlc5Min() {
 	fmt.Printf("\n%s KlineTick Start: \t%s\n\n", string(interval),
 		time.Now().Format("2006-01-02 15:04:05.004005683"))
 
-	// now it's good time to start ROI analysis routine
-	go RoiRoutine()
-
 	// then we start a goroutine to get realtime data in intervals
-	ticker := minuteTicker()
+	ticker := dayTicker()
 	var tickerCount = 0
 loop:
 	for  {
@@ -56,7 +53,7 @@ loop:
 				"\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 			// Update the ticker
-			ticker = minuteTicker()
+			ticker = dayTicker()
 
 		default:
 			time.Sleep(100 * time.Millisecond)
@@ -66,10 +63,11 @@ loop:
 	fmt.Println("goroutine exited - updateOhlc", string(interval))
 }
 
-func minuteTicker() *time.Ticker {
-	// Return new ticker that triggers on the minute
+func dayTicker() *time.Ticker {
+
 	now := time.Now()
 	return time.NewTicker(
-		time.Second * time.Duration(60-now.Second()) -
-			time.Nanosecond * time.Duration(now.Nanosecond()))
+		time.Minute * time.Duration(60-now.Minute()) -
+		time.Second * time.Duration(now.Second()) -
+		time.Nanosecond * time.Duration(now.Nanosecond()))
 }

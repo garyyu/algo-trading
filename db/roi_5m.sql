@@ -1,7 +1,7 @@
-drop table if exists roi5min;
+drop table if exists roi_5m;
 
 
-create table roi5min (
+create table roi_5m (
     id int primary key auto_increment,
     Symbol	    varchar(16) NOT NULL,
     Rank	    int(12) NOT NULL DEFAULT 0,
@@ -14,4 +14,4 @@ create table roi5min (
     OpenTime 	    datetime NOT NULL,
     EndTime 	    datetime NOT NULL,
     AnalysisTime    datetime NOT NULL 
-  ) comment 'roi5min table';
+  ) comment 'roi_5m table';
