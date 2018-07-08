@@ -64,7 +64,7 @@ loop:
 			/*
 			 * Strictly limited ONLY for test !
 			 */
-			ProjectNew()
+			//ProjectNew()
 
 			QueryOrders()
 
@@ -189,7 +189,8 @@ func RoiSimulate() {
 	}
 
 	// Insert HuntList to Database
-	InsertHuntList(HuntList)
+	// TODO: strategy is to be designed more practical!
+	//InsertHuntList(HuntList)
 }
 
 func CalcRoi(

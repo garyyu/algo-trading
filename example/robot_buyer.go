@@ -13,7 +13,7 @@ import (
  */
 func ProjectManager(){
 
-	// Project Performance Index Refreshing
+	// Project Performance Indicator Refreshing
 	ProjectMutex.Lock()
 	for _, project := range AliveProjectList {
 

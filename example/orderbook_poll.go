@@ -31,9 +31,11 @@ type OBData struct {
  */
 func OrderBookRoutine(){
 
-	time.Sleep(15 * time.Second)
+	//time.Sleep(15 * time.Second)
 
 	fmt.Printf("\nOrdBkTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
+
+	lowerIntervalCount := 0
 
 	// start a goroutine to get realtime ROI analysis in 1 min interval
 	ticker := robotSecondTicker()
@@ -50,14 +52,7 @@ loop:
 			fmt.Printf("OrdBkTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
 			//hour, min, sec := tick.Clock()
 
-			// only polling alive project list symbols and latest hunt_list symbols
-
-			huntList := getHuntList()
-
-			for _, hunt := range *huntList {
-				getOrderBook(hunt.Symbol, 10)
-			}
-
+			// for alive project list symbols, polling in quick interval: 3s
 			ProjectMutex.RLock()
 			for _, project := range AliveProjectList {
 				getOrderBook(project.Symbol, 10)
@@ -65,6 +60,20 @@ loop:
 			ProjectMutex.RUnlock()
 
 			UpdateProjectNowPrice()
+
+			// hunt list also
+			huntList := getHuntList()
+			for _, hunt := range *huntList {
+				getOrderBook(hunt.Symbol, 10)
+			}
+
+			// for full price list, polling in lower interval: 30s
+			lowerIntervalCount += 1
+			if lowerIntervalCount >= 10 {
+				for _, symbol := range SymbolList {
+					getOrderBook(symbol, 10)
+				}
+			}
 
 			// Update the ticker
 			ticker = robotSecondTicker()

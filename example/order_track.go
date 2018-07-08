@@ -7,12 +7,88 @@ import (
 	"time"
 )
 
+var (
+	LatestOrderID int64 = 0
+)
+
 type OrderData struct {
 	id				 		 int64		`json:"id"`
 	ProjectID				 int64		`json:"ProjectID"`
 	IsDone					 bool		`json:"IsDone"`
 	executedOrder			 binance.ExecutedOrder	`json:"executedOrder"`
 	LastQueryTime            time.Time	`json:"LastQueryTime"`
+}
+
+/*
+ * Expensive API: Weight: 5
+ * 		Only call it from Project Manager
+ */
+func GetAllOrders(symbol string){
+
+	executedOrderList, err := binanceSrv.AllOrders(binance.AllOrdersRequest{
+		Symbol:     symbol,
+		OrderID:	LatestOrderID,
+		RecvWindow: 5 * time.Second,
+		Timestamp:  time.Now(),
+	})
+	if err != nil {
+		level.Error(logger).Log("GetAllOrders - fail! Symbol=", symbol)
+		return
+	}
+
+	oldLatestOrderID := LatestOrderID
+	keepOldOne := false
+
+	for _, executedOrder := range executedOrderList {
+
+		if executedOrder.OrderID > LatestOrderID {
+			LatestOrderID = executedOrder.OrderID
+		}
+
+		// check if this order is done
+		IsDone := false
+		if executedOrder.IsWorking {
+			IsDone = true
+		}
+
+		// already in local database?
+		if GetOrderId(executedOrder.OrderID)>0 {
+			continue
+		}
+
+		// find active project in same asset
+		var ProjectID int64 = -1
+		ProjectMutex.RLock()
+		for _, activeProject := range AliveProjectList {
+			if activeProject.Symbol == executedOrder.Symbol {
+				ProjectID = activeProject.id
+				break
+			}
+		}
+		ProjectMutex.RUnlock()
+
+		if ProjectID==-1{
+			fmt.Println("GetAllOrders - Fail to find ProjectID for order", executedOrder)
+			keepOldOne = true
+			continue
+		}
+
+		// insert data into order list
+		orderData := OrderData{
+			ProjectID: ProjectID,
+			executedOrder:*executedOrder,
+			IsDone: IsDone,
+		}
+		if InsertOrder(&orderData)<=0 {
+			fmt.Println("GetAllOrders - Fail to insert database for order", orderData)
+			keepOldOne = true
+		}
+	}
+
+	if keepOldOne {
+		LatestOrderID = oldLatestOrderID
+	}
+
 }
 
 func QueryOrders(){
@@ -131,6 +207,24 @@ func InsertOrder(orderData *OrderData) int64{
 	}
 
 	id, _ := res.LastInsertId()
+	return id
+}
+
+
+
+/*
+ * Used for detect if order exist in local database
+ */
+func GetOrderId(OrderID int64) int64 {
+
+	row := DBCon.QueryRow("SELECT id FROM order_list WHERE OrderID=?", OrderID)
+
+	var id int64 = -1
+	err := row.Scan(&id)
+	if err != nil {
+		level.Error(logger).Log("GetOrderId - Scan Err:", err)
+	}
+
 	return id
 }
 
