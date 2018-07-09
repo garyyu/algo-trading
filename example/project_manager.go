@@ -15,11 +15,35 @@ func ProjectManager(){
 
 	// Project Performance Indicator Refreshing
 	ProjectMutex.Lock()
-	for _, project := range AliveProjectList {
+	for _, project := range ActiveProjectList {
+
+		if project.IsClosed {
+			continue
+		}
+
+		// import all orders into local database, and map them into related projects
+		GetAllOrders(project.Symbol)
 
 		netBuy,netIncome := GetProjectNetBuy(project.id)
+		if netBuy == 0 && netIncome == 0 {
+			fmt.Printf("ProjectManager - %s order info not finalized! wait next ticker.\n",
+				project.Symbol)
+			continue
+		}
 
-		project.BalanceBase = netBuy
+		if netBuy > 0 && !FloatEquals(project.BalanceBase,netBuy) {
+
+			fmt.Printf("Warning! ProjectManager - %s BalanceBase:%f, different from netBuy:%f. Force to use netBuy\n",
+				project.Symbol, project.BalanceBase, netBuy)
+			project.BalanceBase = netBuy
+
+		}else if netBuy==0 {
+
+			// that means it's already sold! project close.
+			fmt.Printf("ProjectManager - %s netBuy=0. sold? project is to be close\n", project.Symbol)
+			project.BalanceBase = netBuy
+			project.IsClosed = true
+		}
 		project.BalanceQuote = netIncome + project.InitialBalance
 
 		// get latest price
@@ -31,16 +55,19 @@ func ProjectManager(){
 		}
 
 		project.Roi = (project.BalanceQuote + project.BalanceBase * highestBid.Price) / project.InitialBalance - 1.0
-		fmt.Printf("ProjectManager - %s: Roi=%.2f%%, RoiS=%.2f%%\n",
-			project.Symbol, project.Roi*100, project.RoiS*100)
+		fmt.Printf("ProjectManager - %s: Roi=%.2f%%, RoiS=%.2f%%, LiveBalance=%f\n",
+			project.Symbol, project.Roi*100, project.RoiS*100, project.InitialBalance*(1.0+project.Roi))
 
 		// Update Roi to Database
-		if !UpdateProjectRoi(&project){
+		if !UpdateProjectRoi(project){
 			fmt.Println("ProjectManager - Warning! UpdateProjectRoi fail.")
 		}
 
-
 	}
+
+	//TODO: Remove Closed Projects from AliveProjectList
+
+
 	ProjectMutex.Unlock()
 
 }
@@ -164,11 +191,18 @@ func GetProjectNetBuy(projectId int64) (float64,float64){
 
 	totalExecutedBuyQty := 0.0
 	totalSpentQuote := 0.0
-	errB := rowBuy.Scan(&totalExecutedBuyQty, &totalSpentQuote)
+	var t1,t2 NullFloat64
+	errB := rowBuy.Scan(&t1, &t2)
 
 	if errB != nil && errB != sql.ErrNoRows {
 		level.Error(logger).Log("GetProjectSum - DB.Query Fail. Err=", errB)
 		panic(errB.Error())
+	}
+	if t1.Valid {
+		totalExecutedBuyQty = t1.Float64
+	}
+	if t2.Valid {
+		totalSpentQuote = t2.Float64
 	}
 
 	// Sum all the Sell
@@ -181,7 +215,6 @@ func GetProjectNetBuy(projectId int64) (float64,float64){
 	totalExecutedSellQty := 0.0
 	totalIncomeQuote := 0.0
 
-	var t1,t2 NullFloat64
 	errS := rowSell.Scan(&t1, &t2)
 
 	if errS != nil && errS != sql.ErrNoRows {
@@ -207,17 +240,18 @@ func GetProjectNetBuy(projectId int64) (float64,float64){
  */
 func UpdateProjectRoi(project *ProjectData) bool{
 
-	if project==nil || len(project.ClientOrderID)==0 || project.OrderID==0 || project.id<0 {
-		level.Warn(logger).Log("UpdateProjectRoi.ProjectData", project)
+	if project==nil || project.id<0 {
+		level.Warn(logger).Log("UpdateProjectRoi - Fail! Invalid id:", project.id)
 		return false
 	}
 
-	query := `UPDATE project_list SET Roi=?, BalanceBase=?, BalanceQuote=? WHERE id=?`
+	query := `UPDATE project_list SET Roi=?, BalanceBase=?, BalanceQuote=?, IsClosed=? WHERE id=?`
 
 	res, err := DBCon.Exec(query,
 		project.Roi,
 		project.BalanceBase,
 		project.BalanceQuote,
+		project.IsClosed,
 		project.id,
 	)
 

@@ -9,16 +9,14 @@ import (
 /*
  * Daily KLines
  */
-func updateDailyOhlc() {
+func DailyOhlcRoutine() {
 
 	interval := binance.Day
-
-	InitialKlines(interval)
 
 	totalQueryRet := 0
 	totalQueryNewRet := 0
 
-	fmt.Printf("\n%s KlineTick Start: \t%s\n\n", string(interval),
+	fmt.Printf("%s KlineTick Start: \t%s\n\n", string(interval),
 		time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	// then we start a goroutine to get realtime data in intervals

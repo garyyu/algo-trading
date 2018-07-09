@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"bitbucket.org/garyyu/go-binance"
 	"time"
+	"database/sql"
 )
 
 var (
-	LatestOrderID int64 = 0
+	LatestOrderID = make(map[string]int64)
 )
 
 type OrderData struct {
@@ -21,13 +22,23 @@ type OrderData struct {
 
 /*
  * Expensive API: Weight: 5
+ * It help to import all orders into local database, and map them into related projects.
  * 		Only call it from Project Manager
  */
 func GetAllOrders(symbol string){
+	//
+	//fmt.Println("GetAllOrders func enter for", symbol)
+
+	oldLatestOrderID,ok := LatestTradeID[symbol]
+	if !ok{
+		LatestTradeID[symbol] = 0
+		oldLatestOrderID = 0
+	}
+	keepOldOne := false
 
 	executedOrderList, err := binanceSrv.AllOrders(binance.AllOrdersRequest{
 		Symbol:     symbol,
-		OrderID:	LatestOrderID,
+		OrderID:	LatestTradeID[symbol],
 		RecvWindow: 5 * time.Second,
 		Timestamp:  time.Now(),
 	})
@@ -35,14 +46,15 @@ func GetAllOrders(symbol string){
 		level.Error(logger).Log("GetAllOrders - fail! Symbol=", symbol)
 		return
 	}
-
-	oldLatestOrderID := LatestOrderID
-	keepOldOne := false
+	//
+	//fmt.Printf("GetAllOrders - Return %d Orders\n", len(executedOrderList))
 
 	for _, executedOrder := range executedOrderList {
+		//
+		//fmt.Printf("GetAllOrders - Get Order: %v\n", executedOrder)
 
-		if executedOrder.OrderID > LatestOrderID {
-			LatestOrderID = executedOrder.OrderID
+		if executedOrder.OrderID > LatestTradeID[symbol] {
+			LatestTradeID[symbol] = executedOrder.OrderID
 		}
 
 		// check if this order is done
@@ -58,14 +70,14 @@ func GetAllOrders(symbol string){
 
 		// find active project in same asset
 		var ProjectID int64 = -1
-		ProjectMutex.RLock()
-		for _, activeProject := range AliveProjectList {
+		//ProjectMutex.RLock()	//--- must not lock here! because the caller ProjectManager() already Lock().
+		for _, activeProject := range ActiveProjectList {
 			if activeProject.Symbol == executedOrder.Symbol {
 				ProjectID = activeProject.id
 				break
 			}
 		}
-		ProjectMutex.RUnlock()
+		//ProjectMutex.RUnlock()
 
 		if ProjectID==-1{
 			fmt.Println("GetAllOrders - Fail to find ProjectID for order", executedOrder)
@@ -85,14 +97,17 @@ func GetAllOrders(symbol string){
 		}
 	}
 
+	// in case we fail to save to local database
 	if keepOldOne {
-		LatestOrderID = oldLatestOrderID
+		LatestTradeID[symbol] = oldLatestOrderID
 	}
-
+	//
+	//fmt.Println("GetAllOrders func exit")
 }
 
 func QueryOrders(){
 
+	// Get Order List from local database.
 	openOrderList := GetOrderList(false, -1)
 
 	for _, openOrder := range openOrderList {
@@ -134,7 +149,7 @@ func CancelOpenOrders(){
 	ProjectMutex.RLock()
 	defer ProjectMutex.RUnlock()
 
-	for _, project := range AliveProjectList {
+	for _, project := range ActiveProjectList {
 
 		// only new order needs query
 		if project.OrderStatus!=string(binance.StatusNew) {
@@ -180,11 +195,14 @@ func cancelOrder(symbol string, OrderID int64){
  * Insert Order data into Database
  */
 func InsertOrder(orderData *OrderData) int64{
+	//
+	//fmt.Printf("InsertOrder - %v", orderData)
 
-	if orderData==nil || len(orderData.executedOrder.ClientOrderID)==0 {
-		level.Warn(logger).Log("InsertOrder - invalid orderData!", orderData)
-		return -1
-	}
+	//
+	//if orderData==nil || len(orderData.executedOrder.ClientOrderID)==0 {
+	//	level.Warn(logger).Log("InsertOrder - invalid orderData!", orderData)
+	//	return -1
+	//}
 
 	query := `INSERT INTO order_list (
 				ProjectID, Symbol, OrderID, ClientOrderID, Price, OrigQty, Status, TimeInForce, Type, Side
@@ -221,7 +239,7 @@ func GetOrderId(OrderID int64) int64 {
 
 	var id int64 = -1
 	err := row.Scan(&id)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		level.Error(logger).Log("GetOrderId - Scan Err:", err)
 	}
 
@@ -345,7 +363,9 @@ rowLoopOpenOrder:
 		panic(err.Error())
 	}
 
-	fmt.Println("getOrderList - return", len(OpenOrderList), "orders. IsDone=", isDone)
+	//
+	//fmt.Println("getOrderList - return", len(OpenOrderList), "orders. IsDone=", isDone)
+
 	return OpenOrderList
 }
 

@@ -55,5 +55,14 @@ func Round(x, unit float64) float64 {
 	}
 }
 
+func FloatEquals(a, b float64) bool {
+
+	var eps = 0.00000001
+
+	if math.Abs(a - b) < eps {
+		return true
+	}
+	return false
+}
 
 

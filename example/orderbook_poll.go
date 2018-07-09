@@ -33,12 +33,12 @@ func OrderBookRoutine(){
 
 	//time.Sleep(15 * time.Second)
 
-	fmt.Printf("\nOrdBkTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Printf("OrdBkTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	lowerIntervalCount := 0
 
 	// start a goroutine to get realtime ROI analysis in 1 min interval
-	ticker := robotSecondTicker()
+	ticker := orderbookTicker()
 	var tickerCount = 0
 loop:
 	for  {
@@ -50,11 +50,10 @@ loop:
 
 			tickerCount += 1
 			fmt.Printf("OrdBkTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
-			//hour, min, sec := tick.Clock()
 
 			// for alive project list symbols, polling in quick interval: 3s
 			ProjectMutex.RLock()
-			for _, project := range AliveProjectList {
+			for _, project := range ActiveProjectList {
 				getOrderBook(project.Symbol, 10)
 			}
 			ProjectMutex.RUnlock()
@@ -76,7 +75,7 @@ loop:
 			}
 
 			// Update the ticker
-			ticker = robotSecondTicker()
+			ticker = orderbookTicker()
 
 		default:
 			time.Sleep(10 * time.Millisecond)
@@ -85,6 +84,16 @@ loop:
 
 	fmt.Println("goroutine exited - OrderBookRoutine")
 }
+
+
+func orderbookTicker() *time.Ticker {
+
+	now := time.Now()
+	return time.NewTicker(
+		time.Second * time.Duration(3) -
+			time.Nanosecond * time.Duration(now.Nanosecond()))
+}
+
 
 func getOrderBook(symbol string, limit int) (int,int){
 
@@ -239,7 +248,7 @@ func UpdateProjectNowPrice(){
 	ProjectMutex.Lock()
 	defer ProjectMutex.Unlock()
 
-	for _, project := range AliveProjectList {
+	for _, project := range ActiveProjectList {
 
 		highestBid := getHighestBid(project.Symbol)
 		if highestBid.Time.Add(time.Second * 5).Before(time.Now()) {
@@ -279,12 +288,4 @@ func UpdateProjectNowPrice(){
 	//fmt.Println("UpdateProjectNowPrice func left")
 }
 
-
-func robotSecondTicker() *time.Ticker {
-	// Return new ticker that triggers on the second
-	now := time.Now()
-	return time.NewTicker(
-		time.Second * time.Duration(3) -
-			time.Nanosecond * time.Duration(now.Nanosecond()))
-}
 

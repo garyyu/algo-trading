@@ -36,9 +36,7 @@ type RoiData struct {
  */
 func RoiRoutine(){
 
-	InitLocalKlines(binance.FiveMinutes)
-
-	fmt.Printf("\nRoiAnTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Printf("RoiAnTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	// start a goroutine to get realtime ROI analysis in 1 min interval
 	ticker := roiMinuteTicker()
@@ -53,23 +51,19 @@ loop:
 
 			tickerCount += 1
 			fmt.Printf("RoiAnTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
-			//hour, min, sec := tick.Clock()
 
 			PollKlines(binance.FiveMinutes)
 
 			RoiSimulate()
 
-			RoiReport()
+			//RoiReport()
 
 			/*
 			 * Strictly limited ONLY for test !
+			 * 		TODO: Auto-Creation of Project is Tricky! Wait for stable algorithm to select...
 			 */
 			//ProjectNew()
-
-			QueryOrders()
-
-			//TODO: should be in an self thread
-			ProjectManager()
+			//QueryOrders()
 
 			// Update the ticker
 			ticker = minuteTicker()

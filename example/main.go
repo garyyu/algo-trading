@@ -66,14 +66,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	go updateOhlc5Min()
-
-	go updateDailyOhlc()
-
-	//strictly only for debug here when 'go updateOhlc()' is commented out
-	//go RoiRoutine()
-
-	go OrderBookRoutine()
+	go startMainRoutines()
 
 	fmt.Println("main is runing and waiting for interrupt")
 	<-interrupt
@@ -81,11 +74,33 @@ func main() {
 
 	// notify all routines exit.
 	close(routinesExitChan)
-	time.Sleep(1 * time.Second)		// wait 1 seconds for routines exit
+	time.Sleep(2 * time.Second)		// wait for sub-routines exit
 
 	cancelCtx()
 	fmt.Println("waiting for signal")
 
 	fmt.Println("main exited.")
 	return
+}
+
+func startMainRoutines(){
+
+	InitialKlines(binance.FiveMinutes)
+	InitialKlines(binance.Day)
+
+	InitLocalKlines(binance.FiveMinutes)
+
+	go Ohlc5MinRoutine()
+	go DailyOhlcRoutine()
+
+	//strictly only for debug here when 'go updateOhlc()' is commented out
+	//go RoiRoutine()
+
+	go OrderBookRoutine()
+
+	// now it's good time to start ROI analysis routine
+	go RoiRoutine()
+
+	// also start project manager
+	go ProjectRoutine()
 }

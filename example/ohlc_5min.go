@@ -9,20 +9,15 @@ import (
 /*
  * KLines Data Updating. 5Min Lines
  */
-func updateOhlc5Min() {
+func Ohlc5MinRoutine() {
 
 	interval := binance.FiveMinutes
-
-	InitialKlines(interval)
 
 	totalQueryRet := 0
 	totalQueryNewRet := 0
 
-	fmt.Printf("\n%s KlineTick Start: \t%s\n\n", string(interval),
+	fmt.Printf("%s KlineTick Start: \t%s\n\n", string(interval),
 		time.Now().Format("2006-01-02 15:04:05.004005683"))
-
-	// now it's good time to start ROI analysis routine
-	go RoiRoutine()
 
 	// then we start a goroutine to get realtime data in intervals
 	ticker := minuteTicker()
@@ -50,9 +45,9 @@ loop:
 				totalQueryRet += rowsNum
 				totalQueryNewRet += rowsNewNum
 			}
-			fmt.Println("Poll", interval, "Klines from Binance - ", len(SymbolList), "symbols",
-				" average KLines:", float32(totalQueryRet)/float32(len(SymbolList)),
-				" average new KLines:", float32(totalQueryNewRet)/float32(len(SymbolList)),
+			fmt.Println("Poll", interval, "Klines from Binance -", len(SymbolList), "symbols.",
+				"average:", float32(totalQueryRet)/float32(len(SymbolList)),
+				"average new:", float32(totalQueryNewRet)/float32(len(SymbolList)),
 				"\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 			// Update the ticker

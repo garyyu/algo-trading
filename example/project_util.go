@@ -77,7 +77,7 @@ rowLoop:
 		}
 
 		// if already in active project list
-		for _, existing := range AliveProjectList {
+		for _, existing := range ActiveProjectList {
 			if existing.Symbol == hunt.Symbol {
 				continue rowLoop
 			}
@@ -91,36 +91,17 @@ rowLoop:
 	return &huntList
 }
 
-//func getAliveProjects() int{
-//
-//	rows, err := DBCon.Query(
-//		"select count(id) from project_list where IsClosed=0 and CloseTime is not NULL")
-//
-//	if err != nil {
-//		panic(err.Error()) // proper error handling instead of panic in your app
-//	}
-//	defer rows.Close()
-//
-//	var aliveProjects = -1	// if not found, rows is empty.
-//	for rows.Next() {
-//		err := rows.Scan(&aliveProjects)
-//		if err != nil {
-//			level.Error(logger).Log("getAliveProjects.err", err)
-//		}
-//	}
-//	return aliveProjects
-//}
-
 /*
- * Get alive projects from local database
+ * Get active projects from local database
  */
-func getAliveProjectList() int{
+func getActiveProjectList() int{
 
 	rows, err := DBCon.Query(
 		"select * from project_list where IsClosed=0 and CloseTime is NULL LIMIT 50")
 
 	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
+		level.Error(logger).Log("getActiveProjectList - fail! Err=", err)
+		panic(err.Error())
 	}
 	defer rows.Close()
 
@@ -139,7 +120,7 @@ rowLoop:
 			&project.OrderStatus, &closeTime, &project.IsClosed)
 
 		if err != nil {
-			level.Error(logger).Log("getAliveProjectList - Scan Err:", err)
+			level.Error(logger).Log("getActiveProjectList - Scan Err:", err)
 			continue
 		}
 
@@ -151,16 +132,16 @@ rowLoop:
 		}
 
 		// if already in active project list
-		for _, existing := range AliveProjectList {
+		for _, existing := range ActiveProjectList {
 			if existing.id == project.id {
 				continue rowLoop
 			}
 		}
 
-		AliveProjectList = append(AliveProjectList, project)
+		ActiveProjectList = append(ActiveProjectList, &project)
 	}
 
-	return len(AliveProjectList)
+	return len(ActiveProjectList)
 }
 
 func getBlackList() *[]BlacklistHunt{
@@ -195,7 +176,7 @@ func getBlackList() *[]BlacklistHunt{
 func InsertProject(project *ProjectData) int64{
 
 	if project==nil || len(project.ClientOrderID)==0 {
-		level.Warn(logger).Log("InsertProject.ProjectData", project)
+		level.Warn(logger).Log("InsertProject - Fail. ClientOrderID:", project.ClientOrderID)
 		return -1
 	}
 

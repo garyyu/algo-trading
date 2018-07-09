@@ -28,8 +28,8 @@ type KlineRo struct {
  */
 func InitLocalKlines(interval binance.Interval) {
 
-	fmt.Println("Initializing", string(interval),
-		"Klines from database ...\t\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Println("Loading", string(interval),
+		"Klines from database ...\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume
@@ -74,7 +74,7 @@ func InitLocalKlines(interval binance.Interval) {
 		//fmt.Println("InitKlines - ", symbol, "got", rowsNum)
 		totalQueryRet += rowsNum
 	}
-	fmt.Println("InitKlines", string(interval), " - ", len(SymbolList), "symbols", " average Klines number:",
+	fmt.Println("LoadKlines", string(interval), " - ", len(SymbolList), "symbols.", "average:",
 		float32(totalQueryRet)/float32(len(SymbolList)),
 		"\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
@@ -86,7 +86,7 @@ func InitLocalKlines(interval binance.Interval) {
 func PollKlines(interval binance.Interval) {
 
 	fmt.Println("Polling" + string(interval) +
-		"Klines from database ...\t\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+		"Klines from database ...\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume
@@ -131,7 +131,7 @@ func PollKlines(interval binance.Interval) {
 		totalQueryRet += rowsNum
 	}
 
-	fmt.Println("PollKlines", string(interval), " - ", len(SymbolList), "symbols", " average Klines number:",
+	fmt.Println("PollKlines", string(interval), " - ", len(SymbolList), "symbols.", " average:",
 		float32(totalQueryRet)/float32(len(SymbolList)),
 		"\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 }

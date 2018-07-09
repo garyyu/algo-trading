@@ -16,7 +16,7 @@ func InitialKlines(interval binance.Interval){
 
 	var symbol string
 
-	fmt.Println("Initialize ", string(interval), "KLines from Binance ...\t\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Println("Initialize", string(interval), "KLines from Binance ...\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	var totalQueryRet = 0
 	var totalQueryNewRet = 0
@@ -63,8 +63,8 @@ initialDataLoop:
 		}
 
 	}
-	fmt.Println(string(interval), "KLines Initialization Done - ", len(SymbolList), "symbols",
-		" average KLines :", float32(totalQueryRet)/float32(len(SymbolList)),
-		" average new KLines:", float32(totalQueryNewRet)/float32(len(SymbolList)))
+	fmt.Println(string(interval), "KLines Initialization Done -", len(SymbolList), "symbols.",
+		"average:", float32(totalQueryRet)/float32(len(SymbolList)),
+		"average new:", float32(totalQueryNewRet)/float32(len(SymbolList)))
 }
 

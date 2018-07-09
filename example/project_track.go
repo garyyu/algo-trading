@@ -13,7 +13,7 @@ import (
 
 var (
 	ProjectMutex sync.RWMutex
-	AliveProjectList []ProjectData
+	ActiveProjectList []*ProjectData
 	globalBalanceQuote	float64
 )
 
@@ -23,9 +23,9 @@ const MinOrderTotal = 0.001		// $8 = 0.001btc on $8k/btc
 
 func ProjectTrackIni(){
 
-	AliveProjectList = make([]ProjectData, 0)
+	ActiveProjectList = make([]*ProjectData, 0)
 	// update active project list
-	getAliveProjectList()
+	getActiveProjectList()
 
 	globalBalanceQuote = 0.0005
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -38,13 +38,13 @@ func ProjectNew(){
 	//fmt.Println("ProjectNew func enter")
 
 	ProjectMutex.RLock()
-	aliveProjects := len(AliveProjectList)
+	activeProjects := len(ActiveProjectList)
 	ProjectMutex.RUnlock()
 
 	// skip if already full, or run out of cash. note: $8 = 0.001btc on $8k/btc
-	if aliveProjects >= MaxTradeList || globalBalanceQuote < MinOrderTotal {
-		fmt.Println("ProjectNew - skip. full or run out of cash. aliveProjects=",
-			aliveProjects, "globalBalanceQuote=", globalBalanceQuote)
+	if activeProjects >= MaxTradeList || globalBalanceQuote < MinOrderTotal {
+		fmt.Println("ProjectNew - skip. full or run out of cash. activeProjects=",
+			activeProjects, "globalBalanceQuote=", globalBalanceQuote)
 		return
 	}
 
@@ -63,7 +63,7 @@ func ProjectNew(){
 		}
 
 		ClientOrderID := time.Now().Format("20060102150405") + fmt.Sprintf("%04d",rand.Intn(9999))
-		InitialBalance := globalBalanceQuote / float64(MaxTradeList-aliveProjects)
+		InitialBalance := globalBalanceQuote / float64(MaxTradeList-activeProjects)
 
 		// create new project with hunt.Symbol
 		NewProject := ProjectData{
@@ -152,7 +152,7 @@ func ProjectNew(){
 		globalBalanceQuote -= InitialBalance
 
 		// update alive projects
-		aliveProjects += 1
+		activeProjects += 1
 
 		// update data into database
 		NewProject.OrderID = newOrder.OrderID
