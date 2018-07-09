@@ -5,6 +5,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"bitbucket.org/garyyu/go-binance"
 	"fmt"
+	"database/sql"
 )
 
 func getKlineId(symbol string, openTime time.Time, table string) (int64,time.Time,int){
@@ -92,5 +93,28 @@ func getKlinesData(symbol string, limit int, interval binance.Interval) (int,int
 	}
 
 	return rowsNum,rowsNewNum
+}
+
+/*
+ * Get Latest one kline from local database
+ */
+func GetTimePrice(symbol string) TimePrice {
+
+	row := DBCon.QueryRow(
+		"SELECT CloseTime,Close FROM ohlc_5m WHERE Symbol=? order by id desc limit 1",
+		symbol)
+
+	timePrice := TimePrice{}
+	err := row.Scan(&timePrice.TradeTime, &timePrice.Price)
+	if err != nil && err != sql.ErrNoRows {
+		level.Error(logger).Log("GetTimePrice - Scan Err:", err)
+	}
+
+	// the latest kline data 'CloseTime' always as 'OpenTime'+5 Minutes, use Now() time instead.
+	if timePrice.TradeTime.After(time.Now()) {
+		timePrice.TradeTime = time.Now()
+	}
+
+	return timePrice
 }
 

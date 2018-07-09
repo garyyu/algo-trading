@@ -63,6 +63,13 @@ func ProjectManager(){
 			fmt.Println("ProjectManager - Warning! UpdateProjectRoi fail.")
 		}
 
+		// skip later part if project data is not complete yet!
+		if project.Roi == 0{
+			continue
+		}
+
+		// core value: auto trading!
+		AutoTrading(project, true)
 	}
 
 	//TODO: Remove Closed Projects from AliveProjectList
@@ -155,7 +162,7 @@ func GetLatestRoi(symbol string, backTimeWindow float64) *RoiData{
 	var nowClose float64 = 0.0
 
 	// find the latest OpenTime
-	// TODO: just use Now() to get neareast 5 minutes
+	// TODO: just use Now() to get nearest 5 minutes
 	for _, v := range klinesMap {
 		if v.OpenTime.After(nowOpenTime) {
 			nowOpenTime = v.OpenTime

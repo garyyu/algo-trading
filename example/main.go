@@ -90,13 +90,10 @@ func startMainRoutines(){
 
 	InitLocalKlines(binance.FiveMinutes)
 
+	go OrderBookRoutine()
+
 	go Ohlc5MinRoutine()
 	go DailyOhlcRoutine()
-
-	//strictly only for debug here when 'go updateOhlc()' is commented out
-	//go RoiRoutine()
-
-	go OrderBookRoutine()
 
 	// now it's good time to start ROI analysis routine
 	go RoiRoutine()

@@ -147,7 +147,7 @@ func RoiSimulate() {
 
 		// Top 3 winners
 		sort.Slice(roiList[j], func(m, n int) bool {
-			return roiList[j][m].RoiD > roiList[j][n].RoiD
+			return roiList[j][m].RoiS > roiList[j][n].RoiS
 		})
 
 		for q := range SymbolList {
@@ -226,14 +226,14 @@ func CalcRoi(
 
 		sell := 0.0
 		buy := 0.0
-		gain := (kline.Close - kline.Open) / kline.Open * balanceBase
+		gain := (kline.Close - kline.Open) * balanceBase
 		if gain > 0 {
-			sell = gain * kline.Close
+			sell = gain
 			if sell < MinOrderTotal { // note: $8 = 0.001btc on $8k/btc
 				sell = 0
 			}
 		} else if gain < 0 {
-			buy = math.Min(balanceQuote, -gain*kline.Close)
+			buy = math.Min(balanceQuote, -gain)
 			if buy < MinOrderTotal {  // note: $8 = 0.001btc on $8k/btc
 				buy = 0
 			}

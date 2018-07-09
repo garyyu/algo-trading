@@ -29,7 +29,7 @@ type KlineRo struct {
 func InitLocalKlines(interval binance.Interval) {
 
 	fmt.Println("Loading", string(interval),
-		"Klines from database ...\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+		"Klines from database ...\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume
@@ -85,8 +85,8 @@ func InitLocalKlines(interval binance.Interval) {
  */
 func PollKlines(interval binance.Interval) {
 
-	fmt.Println("Polling" + string(interval) +
-		"Klines from database ...\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Println("Polling " + string(interval) +
+		" Klines from database ...\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume

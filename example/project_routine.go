@@ -38,9 +38,9 @@ loop:
 			// but they are already in local database via GetAllOrders() in ProjectManager()
 			QueryOrders()
 
-			ProjectManager()
-
 			RoiReport()
+
+			ProjectManager()
 
 			// Update the ticker
 			ticker = projectTicker()

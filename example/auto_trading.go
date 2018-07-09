@@ -2,19 +2,25 @@ package main
 
 import (
 	"time"
-	"github.com/go-kit/kit/log/level"
 	"math/rand"
-	"bitbucket.org/garyyu/go-binance"
-	"fmt"
-	"math"
 	"sync"
+	"fmt"
+	"bitbucket.org/garyyu/go-binance"
+	"github.com/go-kit/kit/log/level"
+	"math"
 )
 
+type TimePrice struct {
+	TradeTime time.Time
+	Price float64
+}
 
 var (
 	ProjectMutex sync.RWMutex
 	ActiveProjectList []*ProjectData
 	globalBalanceQuote	float64
+
+	PrevAutoTradingList = make(map[string]TimePrice)
 )
 
 
@@ -29,6 +35,136 @@ func ProjectTrackIni(){
 
 	globalBalanceQuote = 0.0005
 	rand.Seed(time.Now().UTC().UnixNano())
+}
+
+/*
+ * Auto Trading for Project
+ */
+func AutoTrading(project *ProjectData, dryrun bool) bool{
+
+	_,ok := PrevAutoTradingList[project.Symbol]
+	if !ok {
+
+		timePrice := GetTimePrice(project.Symbol)
+		if timePrice.TradeTime.IsZero() {
+			fmt.Println("Error! AutoTrading - GetTimePrice Fail. skip auto trading", project.Symbol)
+			return false
+		}
+
+		PrevAutoTradingList[project.Symbol] = timePrice
+	}
+
+	// get latest price
+	highestBid := OBData{}
+	highestBid = getHighestBid(project.Symbol)
+	if highestBid.Time.Add(time.Second * 5).Before(time.Now()) {
+		fmt.Println("Warning! AutoTrading - getHighestBid got old data. skip auto trading", project.Symbol)
+		return false
+	}
+
+	// last auto-trading already past 5 minutes?
+	if PrevAutoTradingList[project.Symbol].TradeTime.Add(time.Minute * 1).After(highestBid.Time) {
+		return false
+	}
+
+	// check if need auto sell/buy
+
+	var sell float64 = 0.0
+	var buy  float64 = 0.0
+	gain := (highestBid.Price - PrevAutoTradingList[project.Symbol].Price) * project.BalanceBase
+
+	//duration := highestBid.Time.Sub(PrevAutoTradingList[project.Symbol].TradeTime)
+
+	if gain > 0 {
+		sell = gain
+
+		if sell < 1.2*MinOrderTotal { // note: $8 = 0.001btc on $8k/btc
+
+			fmt.Printf("AutoTrading - %s Trivial Sell Request %.8f Ignored. Price=%f->%f\n",
+				project.Symbol, sell, PrevAutoTradingList[project.Symbol].Price, highestBid.Price)
+			sell = 0.0
+		}
+	} else if gain < 0 {
+		buy = math.Min(project.BalanceQuote, -gain)
+
+		if buy < 1.2*MinOrderTotal {  // note: $8 = 0.001btc on $8k/btc
+
+			fmt.Printf("AutoTrading - %s Trivial Buy Request %.8f Ignored. Price=%f->%f\n",
+				project.Symbol, buy, PrevAutoTradingList[project.Symbol].Price, highestBid.Price)
+			buy = 0.0
+		}
+	}
+
+	if sell<=0 && buy <=0{
+		return false
+	}
+
+	// Binance limit different precision for each asset
+	precision, ok := SymbolPrecision[project.Symbol]
+	if !ok{
+		level.Error(logger).Log("Symbol", project.Symbol, "missing precision data!")
+		return false
+	}
+
+	// Round to Binance Precision
+	var direction binance.OrderSide
+	if buy > 0 {
+		direction = binance.SideBuy
+	}else{
+		direction = binance.SideSell
+	}
+	amount := math.Max(buy, sell)
+
+	quantity := Round(amount/highestBid.Price, math.Pow10(precision.AmountPrecision))
+	price := Round(highestBid.Price, math.Pow10(precision.PricePrecision))
+
+	ClientOrderID := time.Now().Format("20060102150405") + fmt.Sprintf("%04d",rand.Intn(9999))
+
+	// call binance API to make new order
+	var OrderID int64 = -1
+	if !dryrun {
+		newOrder, err := binanceSrv.NewOrder(binance.NewOrderRequest{
+			Symbol:           project.Symbol,
+			Quantity:         quantity,
+			Price:            price,
+			NewClientOrderID: ClientOrderID,
+			Side:             direction,
+			TimeInForce:      binance.GTC,
+			Type:             binance.TypeLimit,
+			Timestamp:        time.Now(),
+		})
+		if err != nil {
+			level.Error(logger).Log("AutoTrading - NewOrder Fail. Err:", err, "Project:", project.Symbol)
+			return false
+		}
+		OrderID = newOrder.OrderID
+	}
+
+	fmt.Printf("AutoTrading - New %s OrderID: %d. Price:%f, Amount:%f. Time:%s\n",
+		string(direction), OrderID, price, amount, time.Now().Format("20060102150405"))
+
+	// update prevAutoTrading
+	PrevAutoTradingList[project.Symbol] = TimePrice{
+		TradeTime: 	time.Now().Local(),
+		Price:		price,
+	}
+
+	// insert data into order list
+	orderData := OrderData{
+		ProjectID: project.id,
+		executedOrder:binance.ExecutedOrder{
+			Symbol: project.Symbol,
+			OrderID: OrderID,
+			ClientOrderID: ClientOrderID,
+			Price: price,
+			OrigQty: quantity,
+		},
+	}
+	if !dryrun {
+		InsertOrder(&orderData)
+	}
+
+	return true
 }
 
 func ProjectNew(){
