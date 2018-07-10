@@ -75,6 +75,21 @@ func QueryMyTrades(){
 
 		// Get recent trades list in this asset, with the order of latest first.
 		tradeList := getRecentTradeList(aliveProject.Symbol, binance.Day)
+
+		// Not a new project? Let's put the ProjectID into all those new trades in same asset
+		if aliveProject.InitialBalance>0 {
+
+			for _,trade := range tradeList {
+				trade.ProjectID = aliveProject.id
+
+				if !UpdateTradeProjectID(&trade){
+					fmt.Println("QueryMyTrades - UpdateTradeProjectID Failed. trade:", trade)
+				}
+			}
+
+			continue
+		}
+
 		amount := 0.0
 		invest := 0.0
 
@@ -99,13 +114,20 @@ func QueryMyTrades(){
 
 			// handle special case: can't exactly match! just try our best.
 			if amount > aliveProject.InitialAmount {
-				// reverse the last one
-				if trade.IsBuyer {
-					amount -= trade.Qty
-					invest -= trade.Qty * trade.Price
-				}else{
-					amount += trade.Qty
-					invest += trade.Qty * trade.Price
+
+				// in case of payment of fee without BNB, fee will be paid by bought asset
+				if FloatEquals(amount*(1.0-FeeRateWithoutBNB), aliveProject.InitialAmount) {
+					fmt.Printf("QueryMyTrades - Find Fee Without BNB! Fee=%f(%s)",
+						amount*FeeRateWithoutBNB, aliveProject.Symbol)
+				}else {
+					// in other cases, just reverse the last one
+					if trade.IsBuyer {
+						amount -= trade.Qty
+						invest -= trade.Qty * trade.Price
+					} else {
+						amount += trade.Qty
+						invest += trade.Qty * trade.Price
+					}
 				}
 				aliveProject.InitialBalance = invest
 				aliveProject.InitialPrice = invest / amount

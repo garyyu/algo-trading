@@ -26,6 +26,8 @@ var (
 
 const MaxTradeList = 2	//12
 const MinOrderTotal = 0.001		// $8 = 0.001btc on $8k/btc
+const FeeRateWithoutBNB = 0.001	// 0.1% Fee Rate
+const FeeRateWithBNB = 0.0005	// 0.05% Fee Rate (Discount by BNB)
 
 func ProjectTrackIni(){
 
