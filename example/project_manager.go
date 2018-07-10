@@ -21,6 +21,14 @@ func ProjectManager(){
 			continue
 		}
 
+		// get latest price
+		highestBid := OBData{}
+		highestBid = getHighestBid(project.Symbol)
+		if highestBid.Time.Add(time.Second * 60).Before(time.Now()) {
+			fmt.Println("Warning! ProjectManager - getHighestBid got old data. can't manage project: ", project.Symbol)
+			continue
+		}
+
 		// import all orders into local database, and map them into related projects
 		GetAllOrders(project.Symbol)
 
@@ -37,22 +45,17 @@ func ProjectManager(){
 				project.Symbol, project.BalanceBase, netBuy)
 			project.BalanceBase = netBuy
 
-		}else if netBuy==0 {
+		}else if netBuy*highestBid.Price < 5 * MinOrderTotal {
 
 			// that means it's already sold! project close.
-			fmt.Printf("ProjectManager - %s netBuy=0. sold? project is to be close\n", project.Symbol)
+			// and ignore trivial remaining balance, probably caused by Binance 'MinOrderTotal' limitation.
+
+			fmt.Printf("ProjectManager - %s netBuy=%f(%s) or %f(BTC). sold-out? then project to be close.\n",
+				project.Symbol, netBuy, project.Symbol, netBuy*highestBid.Price)
 			project.BalanceBase = netBuy
 			project.IsClosed = true
 		}
 		project.BalanceQuote = netIncome + project.InitialBalance
-
-		// get latest price
-		highestBid := OBData{}
-		highestBid = getHighestBid(project.Symbol)
-		if highestBid.Time.Add(time.Second * 60).Before(time.Now()) {
-			fmt.Println("Warning! ProjectManager - getHighestBid got old data. fail to update Roi for", project.Symbol)
-			continue
-		}
 
 		project.Roi = (project.BalanceQuote + project.BalanceBase * highestBid.Price) / project.InitialBalance - 1.0
 		fmt.Printf("ProjectManager - %s: Roi=%.2f%%, RoiS=%.2f%%, LiveBalance=%f\n",
