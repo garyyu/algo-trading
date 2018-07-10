@@ -29,6 +29,23 @@ func GetAllOrders(symbol string){
 	//
 	//fmt.Println("GetAllOrders func enter for", symbol)
 
+	// find active project in same asset
+	var project *ProjectData=nil
+
+	//ProjectMutex.RLock()	//--- must not lock here! because the caller ProjectManager() already Lock().
+	for _, activeProject := range ActiveProjectList {
+		if activeProject.Symbol == symbol {
+			project = activeProject
+			break
+		}
+	}
+	//ProjectMutex.RUnlock()
+
+	if project==nil{
+		fmt.Println("GetAllOrders - Fail to find ProjectID for Symbol", symbol)
+		return
+	}
+
 	oldLatestOrderID,ok := LatestTradeID[symbol]
 	if !ok{
 		LatestTradeID[symbol] = 0
@@ -49,6 +66,7 @@ func GetAllOrders(symbol string){
 	//
 	//fmt.Printf("GetAllOrders - Return %d Orders\n", len(executedOrderList))
 
+	var newOrdersImported = 0
 	for _, executedOrder := range executedOrderList {
 		//
 		//fmt.Printf("GetAllOrders - Get Order: %v\n", executedOrder)
@@ -68,32 +86,17 @@ func GetAllOrders(symbol string){
 			continue
 		}
 
-		// find active project in same asset
-		var ProjectID int64 = -1
-		//ProjectMutex.RLock()	//--- must not lock here! because the caller ProjectManager() already Lock().
-		for _, activeProject := range ActiveProjectList {
-			if activeProject.Symbol == executedOrder.Symbol {
-				ProjectID = activeProject.id
-				break
-			}
-		}
-		//ProjectMutex.RUnlock()
-
-		if ProjectID==-1{
-			fmt.Println("GetAllOrders - Fail to find ProjectID for order", executedOrder)
-			keepOldOne = true
-			continue
-		}
-
 		// insert data into order list
 		orderData := OrderData{
-			ProjectID: ProjectID,
+			ProjectID: -1,
 			executedOrder:*executedOrder,
 			IsDone: IsDone,
 		}
 		if InsertOrder(&orderData)<=0 {
-			fmt.Println("GetAllOrders - Fail to insert database for order", orderData)
+			fmt.Println("GetAllOrders - InsertOrder Fail. Order=", orderData)
 			keepOldOne = true
+		}else{
+			newOrdersImported += 1
 		}
 	}
 
@@ -101,8 +104,82 @@ func GetAllOrders(symbol string){
 	if keepOldOne {
 		LatestTradeID[symbol] = oldLatestOrderID
 	}
+
+	// try to map new imported orders to the project
+	if newOrdersImported>0 {
+		MatchProjectForOrder(project)
+	}
 	//
 	//fmt.Println("GetAllOrders func exit")
+}
+
+/*
+ * For new imported orders, we have to solve which project this order belongs to, then
+ * assign ProjectID to the order.
+ */
+func MatchProjectForOrder(project *ProjectData){
+	//
+	//fmt.Println("MatchProjectForOrder - func enter. Project=", project.Symbol)
+
+	// Get recent trades list in this asset, with the order of latest first.
+	orderList,isOldProject := getRecentOrderList(project.Symbol, binance.Day, project.id)
+
+	// Not a new project? Let's put the ProjectID into all those new orders in same asset
+	if isOldProject {
+
+		for _,order := range orderList {
+
+			if order.ProjectID >= 0 {
+				break	// break here to avoid pollute very old orders record.
+			}
+			order.ProjectID = project.id
+			if !UpdateOrderProjectID(&order){
+				fmt.Printf("UpdateOrderProjectID - Fail. ProjectID=%d, order%v\n",
+					project.id, order)
+			}
+		}
+
+		return
+	}
+
+	amount := 0.0
+
+	ordersNum := 0
+	for _,order := range orderList {
+		ordersNum += 1
+
+		if order.executedOrder.Side == binance.SideBuy {
+			amount += order.executedOrder.ExecutedQty
+		}else{
+			amount -= order.executedOrder.ExecutedQty
+		}
+		//
+		//fmt.Printf("MatchProjectForOrder - %d: amount=%f, project InitialAmount=%f\n",
+		//	i, amount, project.InitialAmount)
+
+		if FloatEquals(amount, project.InitialAmount) {
+			break
+		}
+	}
+
+	fmt.Printf("MatchProjectForOrder - %s: amount=%f, project InitialAmount=%f\n",
+		project.Symbol, amount, project.InitialAmount)
+
+	// We find it? Let's put the ProjectID into all these orders
+	if ordersNum < len(orderList) {
+
+		for i:=0; i<ordersNum; i++{
+			order := orderList[i]
+			order.ProjectID = project.id
+
+			if !UpdateOrderProjectID(&order){
+				fmt.Println("MatchProjectForOrder - UpdateOrderProjectID Failed. order:", order)
+			}
+		}
+	}else{
+		fmt.Println("MatchProjectForOrder - Warning! new project for asset", project.Symbol,
+			"not found in my orders history! Project can't be managed.")
+	}
 }
 
 func QueryOrders(){
@@ -205,6 +282,55 @@ func InsertOrder(orderData *OrderData) int64{
 	//}
 
 	query := `INSERT INTO order_list (
+				ProjectID, IsDone, Symbol, OrderID, ClientOrderID, Price, 
+				OrigQty, ExecutedQty, Status, TimeInForce, Type, Side, 
+				StopPrice, IcebergQty, Time, IsWorking, LastQueryTime 
+			  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())`
+
+	executedOrder := &orderData.executedOrder
+	res, err := DBCon.Exec(query,
+		orderData.ProjectID,
+		orderData.IsDone,
+		executedOrder.Symbol,
+		executedOrder.OrderID,
+		executedOrder.ClientOrderID,
+		executedOrder.Price,
+		executedOrder.OrigQty,
+		executedOrder.ExecutedQty,
+		string(executedOrder.Status),
+		string(executedOrder.TimeInForce),
+		string(executedOrder.Type),
+		string(executedOrder.Side),
+		executedOrder.StopPrice,
+		executedOrder.IcebergQty,
+		executedOrder.Time,
+		executedOrder.IsWorking,
+	)
+
+	if err != nil {
+		level.Error(logger).Log("DBCon.Exec", err)
+		return -1
+	}
+
+	id, _ := res.LastInsertId()
+	return id
+}
+
+
+/*
+ * Insert Draft Order data into Database
+ */
+func InsertDraftOrder(orderData *OrderData) int64{
+	//
+	//fmt.Printf("InsertDraftOrder - %v", orderData)
+
+	//
+	//if orderData==nil || len(orderData.executedOrder.ClientOrderID)==0 {
+	//	level.Warn(logger).Log("InsertOrder - invalid orderData!", orderData)
+	//	return -1
+	//}
+
+	query := `INSERT INTO order_list (
 				ProjectID, Symbol, OrderID, ClientOrderID, Price, OrigQty, Status, TimeInForce, Type, Side
 			  ) VALUES (?,?,?,?,?,?,?,?,?,?)`
 
@@ -245,6 +371,33 @@ func GetOrderId(OrderID int64) int64 {
 
 	return id
 }
+
+
+/*
+ * Update ProjectID for Order into Database
+ */
+func UpdateOrderProjectID(order *OrderData) bool{
+
+	query := `UPDATE order_list SET ProjectID=? WHERE id=?`
+
+	res, err := DBCon.Exec(query,
+		order.ProjectID,
+		order.id,
+	)
+
+	if err != nil {
+		level.Error(logger).Log("DBCon.Exec", err)
+		return false
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected>=0 {
+		return true
+	}else{
+		return false
+	}
+}
+
 
 /*
  * Update Order query result into Database
@@ -367,5 +520,85 @@ rowLoopOpenOrder:
 	//fmt.Println("getOrderList - return", len(OpenOrderList), "orders. IsDone=", isDone)
 
 	return OpenOrderList
+}
+
+/*
+ * Get recent orders from local database for one asset.
+ * Return: OrderList and Whether projectID exist in this list.
+ */
+func getRecentOrderList(symbol string, interval binance.Interval, projectID int64) ([]OrderData, bool) {
+
+	orderList := make([]OrderData, 0)
+	projectIdExist := false
+
+	query := "select * from order_list where Symbol='" + symbol +
+		"' and LastQueryTime > DATE_SUB(NOW(), INTERVAL "
+
+	switch interval {
+	case binance.ThreeDays:
+		query += "3 DAY)"
+	case binance.Week:
+		query += "1 WEEK)"
+	case binance.Month:
+		query += "1 MONTH)"
+	default:
+		query += "1 DAY)"
+	}
+
+	query += " and ProjectID=-1 or " + fmt.Sprint(projectID) + " order by id desc"
+
+	rows, err := DBCon.Query(query)
+
+	if err != nil {
+		level.Error(logger).Log("getOrderList - DB.Query Fail. Err=", err)
+		panic(err.Error())
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+
+		var transactTime NullTime
+		var LastQueryTime NullTime
+
+		orderData := OrderData{}
+		executedOrder := &orderData.executedOrder
+
+		err := rows.Scan(&orderData.id, &orderData.ProjectID, &orderData.IsDone,
+			&executedOrder.Symbol, &executedOrder.OrderID, &executedOrder.ClientOrderID,
+			&executedOrder.Price, &executedOrder.OrigQty, &executedOrder.ExecutedQty,
+			&executedOrder.Status, &executedOrder.TimeInForce, &executedOrder.Type,
+			&executedOrder.Side, &executedOrder.StopPrice, &executedOrder.IcebergQty,
+			&transactTime, &executedOrder.IsWorking, &LastQueryTime)
+
+		if err != nil {
+			level.Error(logger).Log("getRecentOrderList - Scan Fail. Err=", err)
+			continue
+		}
+
+		if transactTime.Valid {
+			executedOrder.Time = transactTime.Time
+		}
+		if LastQueryTime.Valid {
+			orderData.LastQueryTime = LastQueryTime.Time
+		}
+
+		//fmt.Println("getRecentOrderList - got OrderData:", orderData)
+
+		if orderData.ProjectID == projectID{
+			projectIdExist = true
+		}
+
+		orderList = append(orderList, orderData)
+	}
+
+	if err := rows.Err(); err != nil {
+		level.Error(logger).Log("getRecentOrderList - rows.Err=", err)
+		panic(err.Error())
+	}
+
+	//
+	//fmt.Println("getRecentOrderList - return", len(OpenOrderList), "orders. IsDone=", isDone)
+
+	return orderList, projectIdExist
 }
 

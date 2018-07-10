@@ -45,6 +45,8 @@ func QueryAccount() {
 			continue
 		}
 
+		fmt.Printf("QueryAccount - %s balance=%f\n", balance.Asset, balance.Free)
+
 		asset := balance.Asset + "BTC"
 
 		// get latest price
@@ -54,28 +56,45 @@ func QueryAccount() {
 			continue
 		}
 
-		// ignore trivial balance
-		if highestBid.Price * balance.Free < 5 * MinOrderTotal {
-			continue
-		}
-
 		for _, knownProject := range ActiveProjectList {
 
 			// Existing Known Project?
 			if knownProject.Symbol == asset {
 
-				if !FloatEquals(knownProject.InitialAmount, balance.Free) {
-					fmt.Println("QueryAccount - Info: found new balance for",
-						knownProject.Symbol, "new=",balance.Free,
-						"old=", knownProject.InitialAmount)
+				if !FloatEquals(knownProject.AccBalanceBase, balance.Free) {
+
+					fmt.Printf("QueryAccount - Info: found new balance for %s. new=%f, old=%f\n",
+						knownProject.Symbol, balance.Free,
+						knownProject.AccBalanceBase)
+
+					knownProject.AccBalanceBase = balance.Free
+
+					if !UpdateProjectAccBalanceBase(knownProject){
+						fmt.Printf("QueryAccount - Update Project %s AccBalanceBase Fail!\n",
+							knownProject.Symbol)
+					}
 				}
 
 				continue lookForNew
 			}
 		}
 
+
+		historyRemain := GetHistoryRemain(asset)
+
+		// ignore trivial balance
+		if highestBid.Price * balance.Free < 5 * MinOrderTotal {
+
+			// update trivial balance into history_remain table
+			if !FloatEquals(historyRemain.Amount, balance.Free){
+				UpdateHistoryRemain(asset, balance.Free)
+			}
+
+			continue
+		}
+
 		// Must Be a New Project!
-		ProjectImport(balance)
+		ProjectImport(balance, historyRemain)
 	}
 }
 
@@ -90,7 +109,10 @@ func ProjectClose(project *ProjectData){
 	}
 }
 
-func ProjectImport(balance *binance.Balance){
+func ProjectImport(balance *binance.Balance, historyRemain HistoryRemain){
+
+	fmt.Printf("ProjectImport - %s Account Balance=%f, History Remain=%f\n",
+		balance.Asset, balance.Free, historyRemain.Amount)
 
 	ClientOrderID := time.Now().Format("20060102150405") + fmt.Sprintf("%04d",rand.Intn(9999))
 
@@ -101,8 +123,8 @@ func ProjectImport(balance *binance.Balance){
 		id:-1,
 		Symbol:asset,
 		ClientOrderID: ClientOrderID,
-		InitialAmount: balance.Free,
-		BalanceBase: balance.Free,
+		InitialAmount: balance.Free - historyRemain.Amount,
+		BalanceBase: balance.Free - historyRemain.Amount,
 		OrderStatus: string(binance.StatusNew),
 	}
 
@@ -119,4 +141,5 @@ func ProjectImport(balance *binance.Balance){
 	ActiveProjectList = append(ActiveProjectList, &NewProject)
 	ProjectMutex.Unlock()
 
+	fmt.Printf("ProjectImport - Success. %s ProjectID=%d\n", NewProject.Symbol, NewProject.id)
 }

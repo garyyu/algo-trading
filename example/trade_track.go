@@ -76,15 +76,33 @@ func QueryMyTrades(){
 		// Get recent trades list in this asset, with the order of latest first.
 		tradeList := getRecentTradeList(aliveProject.Symbol, binance.Day)
 
+		feeBNB := 0.0
+		feeEmbed := 0.0
+
 		// Not a new project? Let's put the ProjectID into all those new trades in same asset
 		if aliveProject.InitialBalance>0 {
 
 			for _,trade := range tradeList {
-				trade.ProjectID = aliveProject.id
 
+				if trade.ProjectID >= 0 {
+					break	// break here to avoid pollute very old trades record.
+				}
+				trade.ProjectID = aliveProject.id
 				if !UpdateTradeProjectID(&trade){
 					fmt.Println("QueryMyTrades - UpdateTradeProjectID Failed. trade:", trade)
 				}
+			}
+
+			// update project commission fees
+
+			feeBNB,feeEmbed = GetTradeFees(aliveProject.id)
+			aliveProject.FeeBNB = feeBNB
+			aliveProject.FeeEmbed = feeEmbed
+			fmt.Printf("QueryMyTrades - Update Project Fees. FeeBNB=%f, FeeEmbed=%f\n",
+				feeBNB, feeEmbed)
+			if !UpdateProjectFees(aliveProject){
+				fmt.Printf("QueryMyTrades - Update Project Fees Fail! Project: %s\n",
+					aliveProject.Symbol)
 			}
 
 			continue
@@ -105,46 +123,27 @@ func QueryMyTrades(){
 				invest -= trade.Qty * trade.Price
 			}
 
+			if trade.CommissionAsset == "BNB"{
+				feeBNB += trade.Commission
+				if trade.Symbol == "BNBBTC"{
+					amount -= trade.Commission
+				}
+			}else{
+				feeEmbed += trade.Commission
+				amount -= trade.Commission
+			}
+
 			if FloatEquals(amount, aliveProject.InitialAmount) {
 				// Finally! We find the trade(s) where this asset balance came from.
 				aliveProject.InitialBalance = invest
 				aliveProject.InitialPrice = invest / amount		// average price if multiple trades
 				break
 			}
-
-			// handle special case: can't exactly match! just try our best.
-			if amount > aliveProject.InitialAmount {
-
-				// in case of payment of fee without BNB, fee will be paid by bought asset
-				if FloatEquals(amount*(1.0-FeeRateWithoutBNB), aliveProject.InitialAmount) {
-					fmt.Printf("QueryMyTrades - Find Fee Without BNB! Fee=%f(%s)",
-						amount*FeeRateWithoutBNB, aliveProject.Symbol)
-				}else {
-					// in other cases, just reverse the last one
-					if trade.IsBuyer {
-						amount -= trade.Qty
-						invest -= trade.Qty * trade.Price
-					} else {
-						amount += trade.Qty
-						invest += trade.Qty * trade.Price
-					}
-				}
-				aliveProject.InitialBalance = invest
-				aliveProject.InitialPrice = invest / amount
-				break
-			}
 		}
 
-		// handle special case for 'BNBBTC'
-		if aliveProject.Symbol=="BNBBTC" && aliveProject.InitialBalance<=0 {
-
-			// just use all 'BNB' trades we found!
-			aliveProject.InitialBalance = invest
-			aliveProject.InitialPrice = invest / amount
-		}
-
-		fmt.Printf("QueryMyTrades - amount=%f, invest=%f. project id=%d, InitialBalance=%f\n",
-			amount, invest, aliveProject.id, aliveProject.InitialBalance)
+		fmt.Printf("QueryMyTrades - amount=%f, invest=%f. project id=%d, InitialBalance=%f, fee=%f(%s)&%f(%s)\n",
+			amount, invest, aliveProject.id, aliveProject.InitialBalance,
+			feeBNB, "BNB", feeEmbed, aliveProject.Symbol)
 
 		// We find it? Let's put the ProjectID into all these trades
 		if aliveProject.InitialBalance>0 {
@@ -162,6 +161,17 @@ func QueryMyTrades(){
 				fmt.Println("QueryMyTrades - Warning! Update Project InitialBalance into database Fail. aliveProject:",
 					aliveProject)
 			}
+
+			// update project commission fees
+
+			aliveProject.FeeBNB,aliveProject.FeeEmbed = GetTradeFees(aliveProject.id)
+			fmt.Printf("QueryMyTrades - Update Project Fees. FeeBNB=%f, FeeEmbed=%f\n",
+				aliveProject.FeeBNB, aliveProject.FeeEmbed)
+			if !UpdateProjectFees(aliveProject){
+				fmt.Printf("QueryMyTrades - Update Project Fees Fail! Project: %s\n",
+					aliveProject.Symbol)
+			}
+
 		}else{
 			fmt.Println("QueryMyTrades - Warning! new project for asset", aliveProject.Symbol,
 				"not found in my trades history! Project can't be managed.")
@@ -272,7 +282,7 @@ func getRecentTradeList(symbol string, interval binance.Interval) []TradeData{
 		query += "1 DAY)"
 	}
 
-	query += " order by Time desc"
+	query += " order by id desc"
 
 	rows, err := DBCon.Query(query)
 
@@ -301,5 +311,35 @@ func getRecentTradeList(symbol string, interval binance.Interval) []TradeData{
 	}
 
 	return tradeList
+}
+
+/*
+ * Get Commissions for ProjectID.
+ */
+func GetTradeFees(projectId int64) (float64,float64){
+
+	row := DBCon.QueryRow(
+		"select sum(if(CommissionAsset='BNB',Commission,0)) as FeeBNB,"+
+			"sum(if(CommissionAsset<>'BNB',Commission,0)) as FeeEmbed "+
+			"from trade_list where ProjectID=?",
+		projectId)
+
+	FeeBNB := 0.0
+	FeeEmbed := 0.0
+	var t1,t2 NullFloat64
+	err := row.Scan(&t1, &t2)
+
+	if err != nil && err != sql.ErrNoRows {
+		level.Error(logger).Log("GetTradeFees - DB.Query Fail. Err=", err)
+		panic(err.Error())
+	}
+	if t1.Valid {
+		FeeBNB = t1.Float64
+	}
+	if t2.Valid {
+		FeeEmbed = t2.Float64
+	}
+
+	return FeeBNB, FeeEmbed
 }
 

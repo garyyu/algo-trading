@@ -15,12 +15,15 @@ type ProjectData struct {
 	ClientOrderID 		     string 	`json:"ClientOrderID"`
 	InitialBalance			 float64	`json:"InitialBalance"`
 	BalanceBase				 float64	`json:"BalanceBase"`
+	AccBalanceBase			 float64	`json:"AccBalanceBase"`
 	BalanceQuote			 float64	`json:"BalanceQuote"`
 	Roi				 		 float64	`json:"Roi"`
 	RoiS			 		 float64	`json:"RoiS"`
 	InitialPrice			 float64	`json:"InitialPrice"`
 	NowPrice			 	 float64	`json:"NowPrice"`
 	InitialAmount			 float64	`json:"InitialAmount"`
+	FeeBNB			 		 float64	`json:"FeeBNB"`
+	FeeEmbed			 	 float64	`json:"FeeEmbed"`
 	CreateTime               time.Time	`json:"CreateTime"`
 	TransactTime             time.Time	`json:"TransactTime"`
 	OrderStatus				 string 	`json:"OrderStatus"`
@@ -115,9 +118,10 @@ rowLoop:
 
 		err := rows.Scan(&project.id, &project.Symbol, &project.ForceQuit, &project.QuitProtect,
 			&project.OrderID, &project.ClientOrderID, &project.InitialBalance, &project.BalanceBase,
-			&project.BalanceQuote, &project.Roi, &project.RoiS, &project.InitialPrice,
-			&project.NowPrice, &project.InitialAmount, &project.CreateTime, &transactTime,
-			&project.OrderStatus, &closeTime, &project.IsClosed)
+			&project.AccBalanceBase, &project.BalanceQuote, &project.Roi, &project.RoiS,
+			&project.InitialPrice, &project.NowPrice, &project.InitialAmount, &project.FeeBNB,
+			&project.FeeEmbed, &project.CreateTime, &transactTime, &project.OrderStatus,
+			&closeTime, &project.IsClosed)
 
 		if err != nil {
 			level.Error(logger).Log("getActiveProjectList - Scan Err:", err)
@@ -182,8 +186,8 @@ func InsertProject(project *ProjectData) int64{
 
 	query := `INSERT INTO project_list (
 				Symbol, ClientOrderID, InitialBalance, InitialPrice, NowPrice, 
-				InitialAmount, CreateTime, OrderStatus
-			  ) VALUES (?,?,?,?,?,?,NOW(),?)`
+				AccBalanceBase, InitialAmount, CreateTime, OrderStatus
+			  ) VALUES (?,?,?,?,?,?,?,NOW(),?)`
 
 	res, err := DBCon.Exec(query,
 		project.Symbol,
@@ -191,6 +195,7 @@ func InsertProject(project *ProjectData) int64{
 		project.InitialBalance,
 		project.InitialPrice,
 		project.InitialPrice,
+		project.InitialAmount,
 		project.InitialAmount,
 		project.OrderStatus,
 	)
@@ -288,6 +293,61 @@ func UpdateProjectBalanceBase(project *ProjectData) bool{
 		return false
 	}
 }
+
+
+/*
+ * Update Project Account Balance Base into Database
+ *		Balance Data in Binance Account.
+ */
+func UpdateProjectAccBalanceBase(project *ProjectData) bool{
+
+	query := `UPDATE project_list SET AccBalanceBase=? WHERE id=?`
+
+	res, err := DBCon.Exec(query,
+		project.AccBalanceBase,
+		project.id,
+	)
+
+	if err != nil {
+		level.Error(logger).Log("DBCon.Exec", err)
+		return false
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected>=0 {
+		return true
+	}else{
+		return false
+	}
+}
+
+
+/*
+ * Update Fees into Database
+ */
+func UpdateProjectFees(project *ProjectData) bool{
+
+	query := `UPDATE project_list SET FeeBNB=?,FeeEmbed=? WHERE id=?`
+
+	res, err := DBCon.Exec(query,
+		project.FeeBNB,
+		project.FeeEmbed,
+		project.id,
+	)
+
+	if err != nil {
+		level.Error(logger).Log("DBCon.Exec", err)
+		return false
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected>=0 {
+		return true
+	}else{
+		return false
+	}
+}
+
 
 
 /*

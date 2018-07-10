@@ -15,6 +15,7 @@ func ProjectRoutine(){
 	// start a goroutine to get realtime project management in 1 min interval
 	ticker := projectTicker()
 	var tickerCount = 0
+
 loop:
 	for  {
 		select {
@@ -24,11 +25,12 @@ loop:
 		case tick := <-ticker.C:
 			ticker.Stop()
 
+			RoiReport()
+
 			tickerCount += 1
 			fmt.Printf("ProjectTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
 
 			// account query can auto-import the project and tracking
-			// todo: this can be in lower interval for example 5 minutes, since it's only used for new project import
 			QueryAccount()
 
 			// trades query can give the new project basic info such as InitialBalance, InitialPrice.
@@ -37,8 +39,6 @@ loop:
 			// orders query can get the final state of order if it's not finalized,
 			// but they are already in local database via GetAllOrders() in ProjectManager()
 			QueryOrders()
-
-			RoiReport()
 
 			ProjectManager()
 

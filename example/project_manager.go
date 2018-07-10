@@ -37,6 +37,9 @@ func ProjectManager(){
 			fmt.Printf("ProjectManager - %s order info not finalized! wait next ticker.\n",
 				project.Symbol)
 			continue
+		}else{
+			//fmt.Printf("ProjectManager - %s: NetBuy=%f, NetIncome=%f\n",
+			//	project.Symbol, netBuy, netIncome)
 		}
 
 		if netBuy > 0 && !FloatEquals(project.BalanceBase,netBuy) {
@@ -50,8 +53,10 @@ func ProjectManager(){
 			// that means it's already sold! project close.
 			// and ignore trivial remaining balance, probably caused by Binance 'MinOrderTotal' limitation.
 
-			fmt.Printf("ProjectManager - %s netBuy=%f(%s) or %f(BTC). sold-out? then project to be close.\n",
-				project.Symbol, netBuy, project.Symbol, netBuy*highestBid.Price)
+			fmt.Printf("ProjectManager - %s account balance=%f(%s) or %f(BTC). sold-out? then project to be close.\n",
+				project.Symbol, project.AccBalanceBase, project.Symbol,
+				project.AccBalanceBase*highestBid.Price)
+
 			project.BalanceBase = netBuy
 			project.IsClosed = true
 		}
@@ -59,7 +64,7 @@ func ProjectManager(){
 
 		project.Roi = (project.BalanceQuote + project.BalanceBase * highestBid.Price) / project.InitialBalance - 1.0
 		fmt.Printf("ProjectManager - %s: Roi=%.2f%%, RoiS=%.2f%%, LiveBalance=%f\n",
-			project.Symbol, project.Roi*100, project.RoiS*100, project.InitialBalance*(1.0+project.Roi))
+			project.Symbol, project.Roi*100, project.RoiS*100, project.AccBalanceBase*highestBid.Price)
 
 		// Update Roi to Database
 		if !UpdateProjectRoi(project){
@@ -72,11 +77,19 @@ func ProjectManager(){
 		}
 
 		// core value: auto trading!
-		AutoTrading(project, true)
+		if !project.IsClosed {
+			AutoTrading(project, true)
+		}
 	}
 
-	//TODO: Remove Closed Projects from AliveProjectList
+	// Remove Closed Projects from AliveProjectList
+	projects := len(ActiveProjectList)
+	for i:=projects-1; i>=0; i-- {
 
+		if ActiveProjectList[i].IsClosed {
+			ActiveProjectList = append(ActiveProjectList[:i], ActiveProjectList[i+1:]...)
+		}
+	}
 
 	ProjectMutex.Unlock()
 
@@ -191,12 +204,12 @@ func GetLatestRoi(symbol string, backTimeWindow float64) *RoiData{
  *	  and Net Income (total Income - total Spent).
  */
 func GetProjectNetBuy(projectId int64) (float64,float64){
-
-	// Sum all the Buy
+	//
+	//fmt.Printf("GetProjectNetBuy - func enter. ProjectID=%d\n", projectId)
 
 	rowBuy := DBCon.QueryRow(
 		"select sum(ExecutedQty),sum(ExecutedQty*Price) from order_list " +
-		"where Side='BUY' and Status='FILLED' and IsDone=1 and ProjectID=?;",
+		"where Side='BUY' and IsDone=1 and ProjectID=?;",
 		projectId)
 
 	totalExecutedBuyQty := 0.0
@@ -219,7 +232,7 @@ func GetProjectNetBuy(projectId int64) (float64,float64){
 
 	rowSell := DBCon.QueryRow(
 		"select sum(ExecutedQty),sum(ExecutedQty*Price) from order_list " +
-		"where Side='SELL' and Status='FILLED' and IsDone=1 and ProjectID=?;",
+		"where Side='SELL' and IsDone=1 and ProjectID=?;",
 		projectId)
 
 	totalExecutedSellQty := 0.0

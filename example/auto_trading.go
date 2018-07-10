@@ -163,7 +163,7 @@ func AutoTrading(project *ProjectData, dryrun bool) bool{
 		},
 	}
 	if !dryrun {
-		InsertOrder(&orderData)
+		InsertDraftOrder(&orderData)
 	}
 
 	return true
@@ -311,7 +311,7 @@ func ProjectNew(){
 				OrigQty: NewProject.InitialAmount,
 			},
 		}
-		InsertOrder(&orderData)
+		InsertDraftOrder(&orderData)
 	}
 
 	//fmt.Println("ProjectNew func left")
