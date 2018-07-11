@@ -20,7 +20,7 @@ var (
 
 type RoiData struct {
 	Symbol            		 string 	`json:"Symbol"`
-	Rank					 int		`json:"Rank"`
+	RoiRank					 int		`json:"RoiRank"`
 	InvestPeriod			 float32	`json:"InvestPeriod"`
 	Klines 					 int		`json:"Klines"`
 	RoiD					 float32	`json:"RoiD"`
@@ -139,7 +139,7 @@ func RoiSimulate() {
 		}
 	}
 
-	// Rank the ROI, to get Top 3 winners and Top 3 losers
+	// RoiRank the ROI, to get Top 3 winners and Top 3 losers
 	for p := range InvestPeriodList {
 
 		// reverse the sequence
@@ -155,7 +155,7 @@ func RoiSimulate() {
 			// reverse the sequence
 			i := len(SymbolList)-1-q
 
-			roiList[j][i].Rank = i + 1
+			roiList[j][i].RoiRank = i + 1
 			if i < 3{
 				//fmt.Printf("RoiTop3Winer - %v\n", roiList[j][i])
 
@@ -174,7 +174,7 @@ func RoiSimulate() {
 				continue
 			}
 
-			roiList[j][i].Rank = i - len(SymbolList)
+			roiList[j][i].RoiRank = i - len(SymbolList)
 			//fmt.Printf("RoiTop3Loser - %v\n", roiList[j][i])
 
 			// Insert to Database
@@ -251,7 +251,7 @@ func CalcRoi(
 	roiS := nowClose/InitialOpen - 1.0
 	roiData := RoiData{
 		Symbol:       symbol,
-		Rank:         0,
+		RoiRank:         0,
 		InvestPeriod: float32(N) * 5.0 / 60.0,
 		Klines:       klinesUsed,
 		RoiD:         float32(roiD),
@@ -276,13 +276,13 @@ func InsertRoi(roiData *RoiData){
 	}
 
 	query := `INSERT INTO roi_5m (
-				Symbol, Rank, InvestPeriod, Klines, RoiD, RoiS, QuoteAssetVolume, NumberOfTrades, 
+				Symbol, RoiRank, InvestPeriod, Klines, RoiD, RoiS, QuoteAssetVolume, NumberOfTrades, 
 				OpenTime, EndTime, AnalysisTime
 			  ) VALUES (?,?,?,?,?,?,?,?,?,?,NOW())`
 
 	_, err := DBCon.Exec(query,
 					roiData.Symbol,
-					roiData.Rank,
+					roiData.RoiRank,
 					roiData.InvestPeriod,
 					roiData.Klines,
 					roiData.RoiD,

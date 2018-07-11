@@ -17,12 +17,12 @@ func RoiReport() {
 	shellExec("",1.0)
 	shellExec("",0.5)
 
-	//cmd := "select u.Symbol,sum(u.Rank)/count(u.Rank) as AverageRank,count(u.Rank) as Count," +
+	//cmd := "select u.Symbol,sum(u.RoiRank)/count(u.RoiRank) as AverageRoiRank,count(u.RoiRank) as Count," +
 	//	"max(u.Klines) as Klines,min(u.OpenTime) as OpenTime,max(u.EndTime) as EndTime," +
-	//	"max(u.QuoteVol) as QuoteVol,max(u.Txs) as Txs from (select id,Symbol,Rank," +
+	//	"max(u.QuoteVol) as QuoteVol,max(u.Txs) as Txs from (select id,Symbol,RoiRank," +
 	//	"round(InvestPeriod,1) as InvestPeriod,Klines,RoiD,RoiS,OpenTime,EndTime," +
 	//	"QuoteAssetVolume as QuoteVol,NumberOfTrades as Txs from roi_5m " +
-	//	"where Rank>0 order by id desc limit 21) as u group by u.Symbol order by AverageRank;"
+	//	"where RoiRank>0 order by id desc limit 21) as u group by u.Symbol order by AverageRoiRank;"
 	//
 	//shellExec(cmd, 0.0)
 }
@@ -33,9 +33,9 @@ func shellExec(cmdOverwrite string, investPeriod float32){
 	if len(cmdOverwrite)>0 {
 		cmd = cmdOverwrite
 	}else {
-		cmd = "select id,Symbol,Rank,round(InvestPeriod,1) as InHours," +
+		cmd = "select id,Symbol,RoiRank,round(InvestPeriod,1) as InHours," +
 			"RoiD,RoiS,OpenTime,EndTime,QuoteAssetVolume as QuoteVol," +
-			"NumberOfTrades as Txs,Klines from roi_5m where Rank>0 and InvestPeriod=" +
+			"NumberOfTrades as Txs,Klines from roi_5m where RoiRank>0 and InvestPeriod=" +
 			fmt.Sprintf("%.6f", investPeriod) +
 			" order by id desc limit 3;"
 	}
