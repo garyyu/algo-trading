@@ -77,7 +77,9 @@ func GetAllOrders(symbol string){
 
 		// check if this order is done
 		IsDone := false
-		if executedOrder.IsWorking {
+		if executedOrder.Status == binance.StatusPartiallyFilled {
+			IsDone = false
+		} else if executedOrder.IsWorking {
 			IsDone = true
 		}
 
@@ -106,9 +108,7 @@ func GetAllOrders(symbol string){
 	}
 
 	// try to map new imported orders to the project
-	if newOrdersImported>0 {
-		MatchProjectForOrder(project)
-	}
+	MatchProjectForOrder(project)
 	//
 	//fmt.Println("GetAllOrders func exit")
 }
@@ -208,7 +208,9 @@ func QueryOrders(){
 		openOrder.executedOrder = *executedOrder
 
 		// check if this order is done
-		if executedOrder.IsWorking {
+		if executedOrder.Status == binance.StatusPartiallyFilled {
+			openOrder.IsDone = false
+		} else if executedOrder.IsWorking {
 			openOrder.IsDone = true
 		}
 

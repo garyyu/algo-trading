@@ -47,7 +47,7 @@ initialDataLoop:
 				interval)											// 1000*5 = 5000(Mins) = 83 (hours) ~= 3.5 (days)
 			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
 		}else{
-			rowsNum,rowsNewNum = getKlinesData(symbol, 24,
+			rowsNum,rowsNewNum = getKlinesData(symbol, 12,
 				interval)											// 12*5 = 60(Mins) = 1 (hour)
 			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
 		}
