@@ -215,7 +215,8 @@ func getHighestBid(symbol string) OBData{
 		symbol + "' and Type='Bid' order by id desc limit 1")
 
 	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
+		level.Error(logger).Log("getHighestBid - DBCon.Query fail! Err:", err)
+		panic(err.Error())
 	}
 	defer rows.Close()
 

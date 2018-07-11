@@ -3,7 +3,7 @@ package main
 
 import (
 	"time"
-	."bitbucket.org/garyyu/go-binance"
+	"bitbucket.org/garyyu/go-binance"
 	"github.com/go-kit/kit/log/level"
 )
 
@@ -28,7 +28,7 @@ type OhlcDbTbl struct {
 }
 
 
-func OhlcCreate(symbol string, exchangeName string, kline Kline, table string) error {
+func OhlcCreate(symbol string, exchangeName string, kline binance.Kline, table string) error {
 
 	query := "INSERT INTO " + table + ` (
 		Symbol, OpenTime, Open, High, Low, Close, Volume, CloseTime,
@@ -60,7 +60,7 @@ func OhlcCreate(symbol string, exchangeName string, kline Kline, table string) e
 }
 
 func OhlcUpdate(id int64, insertTime time.Time, symbol string, exchangeName string,
-	kline Kline, updateTimes int, table string) error {
+	kline binance.Kline, updateTimes int, table string) error {
 
 	query := "REPLACE INTO " + table + ` (
 		id, Symbol, OpenTime, Open, High, Low, Close, Volume, CloseTime,

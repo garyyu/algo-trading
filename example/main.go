@@ -86,6 +86,7 @@ func main() {
 func startMainRoutines(){
 
 	InitialKlines(binance.FiveMinutes)
+	InitialKlines(binance.Hour)
 	InitialKlines(binance.Day)
 
 	InitLocalKlines(binance.FiveMinutes)
@@ -93,6 +94,7 @@ func startMainRoutines(){
 	go OrderBookRoutine()
 
 	go Ohlc5MinRoutine()
+	go HourlyOhlcRoutine()
 	go DailyOhlcRoutine()
 
 	// now it's good time to start ROI analysis routine

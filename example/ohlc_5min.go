@@ -38,12 +38,19 @@ loop:
 				time.Sleep(5 * time.Second) // wait 5 seconds to ensure server data ready.
 			}
 
+			csvPollList := getCsvPollConf(interval)
+
 			totalQueryRet = 0
 			totalQueryNewRet = 0
 			for _,symbol := range SymbolList {
 				rowsNum,rowsNewNum := getKlinesData(symbol, 2, interval)
 				totalQueryRet += rowsNum
 				totalQueryNewRet += rowsNewNum
+
+				// if need polling to csv file
+				if _,ok := csvPollList[symbol]; ok{
+					csvPolling(symbol, interval)
+				}
 			}
 			fmt.Println("Poll", interval, "Klines from Binance -", len(SymbolList), "symbols.",
 				"average:", float32(totalQueryRet)/float32(len(SymbolList)),

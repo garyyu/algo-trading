@@ -118,3 +118,23 @@ func GetTimePrice(symbol string) TimePrice {
 	return timePrice
 }
 
+
+/*
+ * Get Latest kline OpenTime from local database
+ */
+func GetOpenTime(symbol string, interval binance.Interval) time.Time {
+
+	query := "SELECT OpenTime FROM ohlc_" + string(interval) +
+		" WHERE Symbol=? order by OpenTime desc limit 1"
+
+	row := DBCon.QueryRow(query, symbol)
+
+	openTime := time.Time{}
+	err := row.Scan(&openTime)
+	if err != nil && err != sql.ErrNoRows {
+		level.Error(logger).Log("GetOpenTime - row.Scan Err:", err)
+	}
+
+	return openTime
+}
+

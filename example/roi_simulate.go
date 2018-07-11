@@ -10,7 +10,7 @@ import (
 	"bitbucket.org/garyyu/go-binance"
 )
 
-const MaxKlinesMapSize int = 1440	// Minutes
+const MaxKlinesMapSize = 1440 // Minutes
 
 var (
 	SymbolKlinesMapList []map[int64]KlineRo
@@ -110,7 +110,7 @@ func RoiSimulate() {
 
 		var nowOpenTime= time.Time{}
 		var nowCloseTime= time.Time{}
-		var nowClose float64 = 0.0
+		var nowClose = 0.0
 
 		// find the latest OpenTime
 		for _, v := range klinesMap {
@@ -228,7 +228,7 @@ func CalcRoi(
 		buy := 0.0
 		gain := (kline.Close - kline.Open) * balanceBase
 		if gain > 0 {
-			sell = gain
+			sell = math.Min(gain, kline.Close*balanceBase)
 			if sell < MinOrderTotal { // note: $8 = 0.001btc on $8k/btc
 				sell = 0
 			}
@@ -240,7 +240,7 @@ func CalcRoi(
 		}
 
 		balanceQuote += sell - buy
-		balanceBase += gain - (sell-buy)/kline.Close
+		balanceBase += (buy - sell)/kline.Close
 
 		QuoteAssetVolume += kline.QuoteAssetVolume
 		NumberOfTrades += kline.NumberOfTrades
