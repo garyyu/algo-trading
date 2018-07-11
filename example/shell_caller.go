@@ -48,5 +48,5 @@ func shellExec(cmdOverwrite string, investPeriod float32){
 		level.Error(logger).Log("RoiReport.mysql", cmd, "err", err)
 		return
 	}
-	fmt.Println("mysql> ", cmd, "\n\n", string(stdout)[1:])
+	fmt.Println("mysql> ", cmd, "\n\n", string(stdout))
 }
