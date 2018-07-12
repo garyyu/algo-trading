@@ -34,65 +34,19 @@ func ProjectManager(){
 
 		// detection of external buy/sell behaviour (增仓/减/清仓), which will update the
 		// 'InitialAmount', 'InitialPrice' and so on.
-		netBuy,netIncome := GetProjectNetBuy(project.id, true)
-		if project.InitialAmount>0 {
-
-			if netBuy > project.InitialAmount {
-				// external buy (增仓) found
-				fmt.Printf("ProjectManager - external buy(增仓) found! increased holding: %f(%s)",
-					netBuy-project.InitialAmount, project.Symbol)
-			} else if netBuy < project.InitialAmount {
-				// external sell (减/清仓) found
-				fmt.Printf("ProjectManager - external sell(减/清仓) found! decreased holding: %f(%s)",
-					project.InitialAmount-netBuy, project.Symbol)
-			}
-
-			if !FloatEquals(netBuy, project.InitialAmount){
-
-				project.InitialAmount = netBuy
-				project.InitialBalance = -netIncome				// Spent = -Income
-				project.InitialPrice = -netIncome / netBuy		// average price if multiple orders
-
-				// update to database
-				if !UpdateProjectInitialBalance(project){
-					fmt.Println("ProjectManager - Warning! Update Project InitialAmount into database Fail. Project:",
-						project.Symbol)
-				}
-			}
-		}
-
-		// sum all orders in project
-		netBuy,netIncome = GetProjectNetBuy(project.id, false)
-		if netBuy == 0 && netIncome == 0 {
-			fmt.Printf("ProjectManager - %s order info not finalized! wait next ticker.\n",
-				project.Symbol)
+		if _,_,ok := externalTradingSum(project); !ok {
 			continue
-		}else{
-			//fmt.Printf("ProjectManager - %s: NetBuy=%f, NetIncome=%f\n",
-			//	project.Symbol, netBuy, netIncome)
 		}
 
-		if netBuy > 0 && !FloatEquals(project.BalanceBase,netBuy) {
+		autoTradingSum(project, highestBid.Price)
 
-			fmt.Printf("Warning! ProjectManager - %s BalanceBase:%f, different from netBuy:%f. Force to use netBuy\n",
-				project.Symbol, project.BalanceBase, netBuy)
-			project.BalanceBase = netBuy
-
-		}else if netBuy*highestBid.Price < 5 * MinOrderTotal {
-
-			// that means it's already sold! project close.
-			// and ignore trivial remaining balance, probably caused by Binance 'MinOrderTotal' limitation.
-
-			fmt.Printf("ProjectManager - %s account balance=%f(%s) or %f(BTC). sold-out? then project to be close.\n",
-				project.Symbol, project.AccBalanceBase, project.Symbol,
-				project.AccBalanceBase*highestBid.Price)
-
-			project.BalanceBase = netBuy
-			ProjectClose(project)
+		if project.InitialBalance==0{
+			fmt.Printf("ProjectManager - Warning! InitialBalance=0. Roi Invalid.\n")
+			project.Roi = 0
+		}else {
+			project.Roi = (project.BalanceQuote+project.BalanceBase*highestBid.Price)/project.InitialBalance - 1.0
 		}
-		project.BalanceQuote = netIncome + project.InitialBalance
 
-		project.Roi = (project.BalanceQuote + project.BalanceBase * highestBid.Price) / project.InitialBalance - 1.0
 		fmt.Printf("ProjectManager - %s: Roi=%.2f%%, RoiS=%.2f%%, LiveBalance=%f\n",
 			project.Symbol, project.Roi*100, project.RoiS*100, project.AccBalanceBase*highestBid.Price)
 
@@ -102,7 +56,7 @@ func ProjectManager(){
 		}
 
 		// skip later part if project data is not complete yet!
-		if project.Roi == 0{
+		if project.Roi == 0 || project.InitialAmount ==0 || project.InitialPrice==0 {
 			continue
 		}
 
@@ -123,6 +77,81 @@ func ProjectManager(){
 
 	ProjectMutex.Unlock()
 
+}
+
+/* Detection of internal auto-trading buy/sell behaviour, which will update
+ * the 'BalanceBase' and 'BalanceQuote'.
+ */
+func autoTradingSum(project *ProjectData, nowPrice float64){
+
+	// sum all internal (auto-trading) orders in project
+	netBuy,netIncome := GetProjectNetBuy(project.id, false)
+
+	project.BalanceBase = netBuy + project.InitialAmount
+
+	if project.BalanceBase*nowPrice < 5 * MinOrderTotal {
+
+		// that means it's already sold! project close.
+		// and ignore trivial remaining balance, probably caused by Binance 'MinOrderTotal' limitation.
+
+		fmt.Printf("ProjectManager - %s account balance=%f(%s) or %f(BTC). sold-out? project close.\n",
+			project.Symbol, project.AccBalanceBase, project.Symbol,
+			project.AccBalanceBase*nowPrice)
+
+		ProjectClose(project)
+	}
+
+	project.BalanceQuote = netIncome + project.InitialBalance
+}
+
+/* Detection of external buy/sell behaviour (增仓/减/清仓), which will update the
+ * 'InitialAmount', 'InitialPrice', 'FilledProfit' and so on.
+ */
+func externalTradingSum(project *ProjectData) (float64,float64,bool){
+
+	netBuy,netIncome := GetProjectNetBuy(project.id, true)
+
+	if netBuy == 0 && netIncome == 0 {
+		fmt.Printf("ProjectManager - %s order info not finalized! wait next ticker.\n",
+			project.Symbol)
+		return netBuy,netIncome,false
+	}else{
+		//fmt.Printf("ProjectManager - %s: NetBuy=%f, NetIncome=%f\n",
+		//	project.Symbol, netBuy, netIncome)
+	}
+
+	if project.InitialAmount>0 {
+
+		if netBuy > project.InitialAmount {
+			// external buy (增仓) found
+			project.FilledProfit = netBuy * project.InitialPrice + netIncome
+
+			fmt.Printf("ProjectManager - external buy(增仓) found! increased holding: %f(%s)",
+				netBuy-project.InitialAmount, project.Symbol)
+
+		} else if netBuy < project.InitialAmount {
+			// external sell (减/清仓) found
+			project.FilledProfit = netBuy * project.InitialPrice + netIncome
+
+			fmt.Printf("ProjectManager - external sell(减/清仓) found! decreased holding: %f(%s)",
+				project.InitialAmount-netBuy, project.Symbol)
+		}
+
+		if !FloatEquals(netBuy, project.InitialAmount){
+
+			project.InitialAmount = netBuy
+			project.InitialPrice = (project.FilledProfit-netIncome) / netBuy		// average price
+			project.InitialBalance = project.InitialPrice*project.InitialAmount
+
+			// update to database
+			if !UpdateProjectInitialBalance(project){
+				fmt.Println("ProjectManager - Warning! Update Project InitialAmount into database Fail. Project:",
+					project.Symbol)
+			}
+		}
+	}
+
+	return netBuy,netIncome,true
 }
 
 /*
@@ -233,24 +262,26 @@ func GetLatestRoi(symbol string, backTimeWindow float64) *RoiData{
  * Get Order Net Buy (total Buy - total Sell) for ProjectID, based on database records.
  *	  and Net Income (total Income - total Spent).
  *
- * externalOrderOnly: it's used to identify external buy/sell (增仓/减仓), thanks to ClientOrderID
- *		Our 'auto_trading' order will always have a ClientOrderID with format yyyymmddhhmmssxxxx
+ * getExternalOrder:
+ * 	- true means external buy/sell (增仓/减仓), thanks to ClientOrderID
  *
+ *	- false means internal auto-trading orders.
+ *		Our 'auto_trading' order will always have a ClientOrderID with format yyyymmddhhmmssxxxx
  * 		ClientOrderID := time.Now().Format("20060102150405") + fmt.Sprintf("%04d",rand.Intn(9999))
  */
-func GetProjectNetBuy(projectId int64, externalOrderOnly bool) (float64,float64){
+func GetProjectNetBuy(projectId int64, getExternalOrder bool) (float64,float64){
 	//
 	//fmt.Printf("GetProjectNetBuy - func enter. ProjectID=%d\n", projectId)
 
 	var query string
-	if externalOrderOnly {
+	if getExternalOrder {
 		query = "select sum(if(Side='BUY',ExecutedQty,-ExecutedQty))," +
 			"sum(if(Side='BUY',-ExecutedQty*Price,ExecutedQty*Price)) from order_list " +
 			"where IsDone=1 and ClientOrderID NOT REGEXP '^[0-9]{18}$' and ProjectID=?;"
 	}else{
 		query = "select sum(if(Side='BUY',ExecutedQty,-ExecutedQty))," +
 			"sum(if(Side='BUY',-ExecutedQty*Price,ExecutedQty*Price)) from order_list " +
-			"where IsDone=1 and ProjectID=?;"
+			"where IsDone=1 and ClientOrderID REGEXP '^[0-9]{18}$' and ProjectID=?;"
 	}
 
 	rowBuy := DBCon.QueryRow(query, projectId)

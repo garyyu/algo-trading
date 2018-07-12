@@ -154,7 +154,7 @@ func MatchProjectForTrades(aliveProject *ProjectData) {
 		if FloatEquals(amount, aliveProject.InitialAmount) {
 			// Finally! We find the trade(s) where this asset balance came from.
 			aliveProject.InitialBalance = invest
-			aliveProject.InitialPrice = invest / amount		// average price if multiple trades
+			aliveProject.InitialPrice = invest / amount		// average price
 			break
 		}
 	}

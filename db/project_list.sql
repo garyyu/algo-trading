@@ -12,6 +12,7 @@ create table project_list (
     AccBalanceBase  DOUBLE(20,8) NOT NULL DEFAULT 0,
     AccBalanceLocked  DOUBLE(20,8) NOT NULL DEFAULT 0,
     BalanceQuote    DOUBLE(20,8) NOT NULL DEFAULT 0,
+    FilledProfit    DOUBLE(20,8) NOT NULL DEFAULT 0,
     Roi     	    DOUBLE(20,8) NOT NULL DEFAULT 0,
     RoiS    	    DOUBLE(20,8) NOT NULL DEFAULT 0,
     InitialPrice    DOUBLE(20,8) NOT NULL DEFAULT 0,

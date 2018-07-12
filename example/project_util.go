@@ -6,6 +6,28 @@ import (
 )
 
 
+/*
+ *  Core Data Structure.
+ *
+ *	- InitialAmount:	initial set when project import; later updating on externalTradingSum(), for
+ *						detection of external buy/sell behaviours.
+ *	- InitialBalance:	initial set when trades download, on MatchProjectForTrades();
+ *						or when orders download, on MatchProjectForOrder(). both are for new project,
+ *						exactly after project importing.
+ *						later updating on externalTradingSum(), InitialBalance = InitialPrice * InitialAmount.
+ *	- InitialPrice:		same time as InitialBalance.
+ *						initial value: = Spent / amount
+ *						later updating: =(FilledProfit+Spent) / netBuy
+ *
+ *	- AccBalanceBase:	always = Binance Account (Free + Locked).
+ *	- AccBalanceLocked:	always = Binance Account Locked.
+ *
+ *	- BalanceBase:		initial set when project import, later updating on ProjectManager().
+ *						initial value: balance.Free + balance.Locked - historyRemain.Amount.
+ *						later updating: BalanceBase = (auto trading netBuy) + InitialAmount
+ *	- BalanceQuote:		updating on ProjectManager()
+ *						BalanceQuote = (auto trading netIncome) + InitialBalance
+ */
 type ProjectData struct {
 	id				 		 int64		`json:"id"`
 	Symbol            		 string 	`json:"Symbol"`
@@ -18,6 +40,7 @@ type ProjectData struct {
 	AccBalanceBase			 float64	`json:"AccBalanceBase"`
 	AccBalanceLocked	 	 float64	`json:"AccBalanceLocked"`
 	BalanceQuote			 float64	`json:"BalanceQuote"`
+	FilledProfit			 float64	`json:"FilledProfit"`
 	Roi				 		 float64	`json:"Roi"`
 	RoiS			 		 float64	`json:"RoiS"`
 	InitialPrice			 float64	`json:"InitialPrice"`
@@ -119,10 +142,10 @@ rowLoop:
 
 		err := rows.Scan(&project.id, &project.Symbol, &project.ForceQuit, &project.QuitProtect,
 			&project.OrderID, &project.ClientOrderID, &project.InitialBalance, &project.BalanceBase,
-			&project.AccBalanceBase, &project.AccBalanceLocked, &project.BalanceQuote, &project.Roi,
-			&project.RoiS, &project.InitialPrice, &project.NowPrice, &project.InitialAmount,
-			&project.FeeBNB, &project.FeeEmbed, &project.CreateTime, &transactTime,
-			&project.OrderStatus, &closeTime, &project.IsClosed)
+			&project.AccBalanceBase, &project.AccBalanceLocked, &project.BalanceQuote, &project.FilledProfit,
+			&project.Roi, &project.RoiS, &project.InitialPrice, &project.NowPrice,
+			&project.InitialAmount, &project.FeeBNB, &project.FeeEmbed, &project.CreateTime,
+			&transactTime, &project.OrderStatus, &closeTime, &project.IsClosed)
 
 		if err != nil {
 			level.Error(logger).Log("getActiveProjectList - Scan Err:", err)
@@ -216,12 +239,14 @@ func InsertProject(project *ProjectData) int64{
  */
 func UpdateProjectInitialBalance(project *ProjectData) bool{
 
-	query := `UPDATE project_list SET InitialBalance=?, InitialPrice=?, InitialAmount=? WHERE id=?`
+	query := `UPDATE project_list SET InitialBalance=?, InitialPrice=?, 
+				InitialAmount=? FilledProfit=? WHERE id=?`
 
 	res, err := DBCon.Exec(query,
 		project.InitialBalance,
 		project.InitialPrice,
 		project.InitialAmount,
+		project.FilledProfit,
 		project.id,
 	)
 

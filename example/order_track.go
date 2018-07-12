@@ -149,6 +149,7 @@ func MatchProjectForOrder(project *ProjectData){
 	}
 
 	amount := 0.0
+	invest := 0.0
 
 	ordersNum := 0
 	for _,order := range orderList {
@@ -156,8 +157,10 @@ func MatchProjectForOrder(project *ProjectData){
 
 		if order.executedOrder.Side == binance.SideBuy {
 			amount += order.executedOrder.ExecutedQty
+			invest += order.executedOrder.ExecutedQty * order.executedOrder.Price
 		}else{
 			amount -= order.executedOrder.ExecutedQty
+			invest -= order.executedOrder.ExecutedQty * order.executedOrder.Price
 		}
 		//
 		//fmt.Printf("MatchProjectForOrder - %d: amount=%f, project InitialAmount=%f\n",
@@ -180,6 +183,17 @@ func MatchProjectForOrder(project *ProjectData){
 
 			if !UpdateOrderProjectID(&order){
 				fmt.Println("MatchProjectForOrder - UpdateOrderProjectID Failed. order:", order)
+			}
+		}
+
+		// in case trades not downloaded yet
+		if project.InitialBalance == 0{
+
+			project.InitialBalance = invest
+			project.InitialPrice = invest / amount		// average price
+			if !UpdateProjectInitialBalance(project){
+				fmt.Println("MatchProjectForOrder - Update Project InitialBalane Failed. InitialBalance",
+					project.InitialBalance)
 			}
 		}
 	}else{
