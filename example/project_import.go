@@ -41,11 +41,12 @@ func QueryAccount() {
 	lookForNew:
 	for _, balance := range accountInfo.Balances {
 
-		if balance.Asset == "BTC" || balance.Asset == "ETH" || balance.Free == 0{
+		if balance.Asset == "BTC" || balance.Asset == "ETH" || balance.Free+balance.Locked == 0{
 			continue
 		}
 
-		fmt.Printf("QueryAccount - %s balance=%f\n", balance.Asset, balance.Free)
+		fmt.Printf("QueryAccount - %s balance=%f. Free=%f, Locked=%f\n", balance.Asset,
+			balance.Free+balance.Locked, balance.Free, balance.Locked)
 
 		asset := balance.Asset + "BTC"
 
@@ -61,13 +62,14 @@ func QueryAccount() {
 			// Existing Known Project?
 			if knownProject.Symbol == asset {
 
-				if !FloatEquals(knownProject.AccBalanceBase, balance.Free) {
+				if !FloatEquals(knownProject.AccBalanceBase, balance.Free+balance.Locked) {
 
 					fmt.Printf("QueryAccount - Info: found new balance for %s. new=%f, old=%f\n",
-						knownProject.Symbol, balance.Free,
+						knownProject.Symbol, balance.Free+balance.Locked,
 						knownProject.AccBalanceBase)
 
-					knownProject.AccBalanceBase = balance.Free
+					knownProject.AccBalanceBase = balance.Free+balance.Locked
+					knownProject.AccBalanceLocked = balance.Locked
 
 					if !UpdateProjectAccBalanceBase(knownProject){
 						fmt.Printf("QueryAccount - Update Project %s AccBalanceBase Fail!\n",
@@ -83,11 +85,11 @@ func QueryAccount() {
 		historyRemain := GetHistoryRemain(asset)
 
 		// ignore trivial balance
-		if highestBid.Price * balance.Free < 5 * MinOrderTotal {
+		if highestBid.Price * (balance.Free+balance.Locked) < 5 * MinOrderTotal {
 
 			// update trivial balance into history_remain table
-			if !FloatEquals(historyRemain.Amount, balance.Free){
-				UpdateHistoryRemain(asset, balance.Free)
+			if !FloatEquals(historyRemain.Amount, balance.Free+balance.Locked){
+				UpdateHistoryRemain(asset, balance.Free+balance.Locked)
 			}
 
 			continue
@@ -112,7 +114,7 @@ func ProjectClose(project *ProjectData){
 func ProjectImport(balance *binance.Balance, historyRemain HistoryRemain){
 
 	fmt.Printf("ProjectImport - %s Account Balance=%f, History Remain=%f\n",
-		balance.Asset, balance.Free, historyRemain.Amount)
+		balance.Asset, balance.Free+balance.Locked, historyRemain.Amount)
 
 	ClientOrderID := time.Now().Format("20060102150405") + fmt.Sprintf("%04d",rand.Intn(9999))
 
@@ -123,8 +125,8 @@ func ProjectImport(balance *binance.Balance, historyRemain HistoryRemain){
 		id:-1,
 		Symbol:asset,
 		ClientOrderID: ClientOrderID,
-		InitialAmount: balance.Free - historyRemain.Amount,
-		BalanceBase: balance.Free - historyRemain.Amount,
+		InitialAmount: balance.Free + balance.Locked - historyRemain.Amount,
+		BalanceBase: balance.Free + balance.Locked - historyRemain.Amount,
 		OrderStatus: string(binance.StatusNew),
 	}
 

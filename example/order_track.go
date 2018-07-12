@@ -6,6 +6,7 @@ import (
 	"bitbucket.org/garyyu/go-binance"
 	"time"
 	"database/sql"
+	"sort"
 )
 
 var (
@@ -65,6 +66,11 @@ func GetAllOrders(symbol string){
 	}
 	//
 	//fmt.Printf("GetAllOrders - Return %d Orders\n", len(executedOrderList))
+
+	// Sort by Time, in case Binance does't sort them
+	sort.Slice(executedOrderList, func(m, n int) bool {
+		return executedOrderList[m].Time.Before(executedOrderList[n].Time)
+	})
 
 	var newOrdersImported = 0
 	for _, executedOrder := range executedOrderList {
@@ -166,7 +172,7 @@ func MatchProjectForOrder(project *ProjectData){
 		project.Symbol, amount, project.InitialAmount)
 
 	// We find it? Let's put the ProjectID into all these orders
-	if ordersNum < len(orderList) {
+	if FloatEquals(amount, project.InitialAmount) {
 
 		for i:=0; i<ordersNum; i++{
 			order := orderList[i]

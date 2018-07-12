@@ -10,6 +10,7 @@ create table project_list (
     InitialBalance  DOUBLE(20,8) NOT NULL DEFAULT 0,
     BalanceBase     DOUBLE(20,8) NOT NULL DEFAULT 0,
     AccBalanceBase  DOUBLE(20,8) NOT NULL DEFAULT 0,
+    AccBalanceLocked  DOUBLE(20,8) NOT NULL DEFAULT 0,
     BalanceQuote    DOUBLE(20,8) NOT NULL DEFAULT 0,
     Roi     	    DOUBLE(20,8) NOT NULL DEFAULT 0,
     RoiS    	    DOUBLE(20,8) NOT NULL DEFAULT 0,

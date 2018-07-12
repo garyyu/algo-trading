@@ -12,7 +12,7 @@ create table order_list (
     ExecutedQty     DOUBLE(20,8) NOT NULL DEFAULT 0,
     Status     	    varchar(32) NOT NULL,
     TimeInForce     varchar(8) NOT NULL,
-    Type     	    varchar(8) NOT NULL,
+    Type     	    varchar(32) NOT NULL,
     Side     	    varchar(8) NOT NULL,
     StopPrice       DOUBLE(20,8) NOT NULL DEFAULT 0,
     IcebergQty      DOUBLE(20,8) NOT NULL DEFAULT 0,

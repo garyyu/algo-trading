@@ -6,6 +6,7 @@ import (
 	"time"
 	"fmt"
 	"database/sql"
+	"sort"
 )
 
 var (
@@ -47,6 +48,11 @@ func QueryMyTrades(){
 		//
 		//fmt.Printf("QueryMyTrades - got %d trades\n", len(myTrades))
 
+		// Sort by Time, in case Binance does't sort them
+		sort.Slice(myTrades, func(m, n int) bool {
+			return myTrades[m].Time.Before(myTrades[n].Time)
+		})
+
 		var newTradesImported = 0
 		for _, trade := range myTrades {
 
@@ -73,113 +79,121 @@ func QueryMyTrades(){
 			LatestTradeID[aliveProject.Symbol] = oldLatestTradeID
 		}
 
-		// Get recent trades list in this asset, with the order of latest first.
-		tradeList := getRecentTradeList(aliveProject.Symbol, binance.Day)
-
-		feeBNB := 0.0
-		feeEmbed := 0.0
-
-		// Not a new project? Let's put the ProjectID into all those new trades in same asset
-		if aliveProject.InitialBalance>0 {
-
-			for _,trade := range tradeList {
-
-				if trade.ProjectID >= 0 {
-					break	// break here to avoid pollute very old trades record.
-				}
-				trade.ProjectID = aliveProject.id
-				if !UpdateTradeProjectID(&trade){
-					fmt.Println("QueryMyTrades - UpdateTradeProjectID Failed. trade:", trade)
-				}
-			}
-
-			// update project commission fees
-
-			feeBNB,feeEmbed = GetTradeFees(aliveProject.id)
-			aliveProject.FeeBNB = feeBNB
-			aliveProject.FeeEmbed = feeEmbed
-			fmt.Printf("QueryMyTrades - Update Project Fees. FeeBNB=%f, FeeEmbed=%f\n",
-				feeBNB, feeEmbed)
-			if !UpdateProjectFees(aliveProject){
-				fmt.Printf("QueryMyTrades - Update Project Fees Fail! Project: %s\n",
-					aliveProject.Symbol)
-			}
-
-			continue
-		}
-
-		amount := 0.0
-		invest := 0.0
-
-		tradesNum := 0
-		for _,trade := range tradeList {
-			tradesNum += 1
-
-			if trade.IsBuyer {
-				amount += trade.Qty
-				invest += trade.Qty * trade.Price
-			}else{
-				amount -= trade.Qty
-				invest -= trade.Qty * trade.Price
-			}
-
-			if trade.CommissionAsset == "BNB"{
-				feeBNB += trade.Commission
-				if trade.Symbol == "BNBBTC"{
-					amount -= trade.Commission
-				}
-			}else{
-				feeEmbed += trade.Commission
-				amount -= trade.Commission
-			}
-
-			if FloatEquals(amount, aliveProject.InitialAmount) {
-				// Finally! We find the trade(s) where this asset balance came from.
-				aliveProject.InitialBalance = invest
-				aliveProject.InitialPrice = invest / amount		// average price if multiple trades
-				break
-			}
-		}
-
-		fmt.Printf("QueryMyTrades - amount=%f, invest=%f. project id=%d, InitialBalance=%f, fee=%f(%s)&%f(%s)\n",
-			amount, invest, aliveProject.id, aliveProject.InitialBalance,
-			feeBNB, "BNB", feeEmbed, aliveProject.Symbol)
-
-		// We find it? Let's put the ProjectID into all these trades
-		if aliveProject.InitialBalance>0 {
-
-			for i:=0; i<tradesNum; i++{
-				trade := tradeList[i]
-				trade.ProjectID = aliveProject.id
-
-				if !UpdateTradeProjectID(&trade){
-					fmt.Println("QueryMyTrades - UpdateTradeProjectID Failed. trade:", trade)
-				}
-			}
-
-			if !UpdateProjectInitialBalance(aliveProject){
-				fmt.Println("QueryMyTrades - Warning! Update Project InitialBalance into database Fail. aliveProject:",
-					aliveProject)
-			}
-
-			// update project commission fees
-
-			aliveProject.FeeBNB,aliveProject.FeeEmbed = GetTradeFees(aliveProject.id)
-			fmt.Printf("QueryMyTrades - Update Project Fees. FeeBNB=%f, FeeEmbed=%f\n",
-				aliveProject.FeeBNB, aliveProject.FeeEmbed)
-			if !UpdateProjectFees(aliveProject){
-				fmt.Printf("QueryMyTrades - Update Project Fees Fail! Project: %s\n",
-					aliveProject.Symbol)
-			}
-
-		}else{
-			fmt.Println("QueryMyTrades - Warning! new project for asset", aliveProject.Symbol,
-				"not found in my trades history! Project can't be managed.")
-			continue
-		}
-
+		// try to map new imported orders to the project
+		MatchProjectForTrades(aliveProject)
 	}
 
+}
+
+/*
+ * For new imported trades, we have to solve which project this trade belongs to, then
+ * assign ProjectID to the trade.
+ */
+func MatchProjectForTrades(aliveProject *ProjectData) {
+
+	// Get recent trades list in this asset, with the order of latest first.
+	tradeList := getRecentTradeList(aliveProject.Symbol, binance.Day)
+
+	feeBNB := 0.0
+	feeEmbed := 0.0
+
+	// Not a new project? Let's put the ProjectID into all those new trades in same asset
+	if aliveProject.InitialBalance>0 {
+
+		for _,trade := range tradeList {
+
+			if trade.ProjectID >= 0 {
+				break	// break here to avoid pollute very old trades record.
+			}
+			trade.ProjectID = aliveProject.id
+			if !UpdateTradeProjectID(&trade){
+				fmt.Println("MatchProjectForTrades - UpdateTradeProjectID Failed. trade:", trade)
+			}
+		}
+
+		// update project commission fees
+
+		feeBNB,feeEmbed = GetTradeFees(aliveProject.id)
+		aliveProject.FeeBNB = feeBNB
+		aliveProject.FeeEmbed = feeEmbed
+		fmt.Printf("MatchProjectForTrades - Update Project Fees. FeeBNB=%f, FeeEmbed=%f\n",
+			feeBNB, feeEmbed)
+		if !UpdateProjectFees(aliveProject){
+			fmt.Printf("MatchProjectForTrades - Update Project Fees Fail! Project: %s\n",
+				aliveProject.Symbol)
+		}
+
+		return
+	}
+
+	amount := 0.0
+	invest := 0.0
+
+	tradesNum := 0
+	for _,trade := range tradeList {
+		tradesNum += 1
+
+		if trade.IsBuyer {
+			amount += trade.Qty
+			invest += trade.Qty * trade.Price
+		}else{
+			amount -= trade.Qty
+			invest -= trade.Qty * trade.Price
+		}
+
+		if trade.CommissionAsset == "BNB"{
+			feeBNB += trade.Commission
+			if trade.Symbol == "BNBBTC"{
+				amount -= trade.Commission
+			}
+		}else{
+			feeEmbed += trade.Commission
+			amount -= trade.Commission
+		}
+
+		if FloatEquals(amount, aliveProject.InitialAmount) {
+			// Finally! We find the trade(s) where this asset balance came from.
+			aliveProject.InitialBalance = invest
+			aliveProject.InitialPrice = invest / amount		// average price if multiple trades
+			break
+		}
+	}
+
+	fmt.Printf("MatchProjectForTrades - amount=%f, invest=%f. project id=%d, InitialBalance=%f, fee=%f(%s)&%f(%s)\n",
+		amount, invest, aliveProject.id, aliveProject.InitialBalance,
+		feeBNB, "BNB", feeEmbed, aliveProject.Symbol)
+
+	// We find it? Let's put the ProjectID into all these trades
+	if FloatEquals(amount, aliveProject.InitialAmount) {
+
+		for i:=0; i<tradesNum; i++{
+			trade := tradeList[i]
+			trade.ProjectID = aliveProject.id
+
+			if !UpdateTradeProjectID(&trade){
+				fmt.Println("MatchProjectForTrades - UpdateTradeProjectID Failed. trade:", trade)
+			}
+		}
+
+		if !UpdateProjectInitialBalance(aliveProject){
+			fmt.Println("MatchProjectForTrades - Warning! Update Project InitialBalance into database Fail. aliveProject:",
+				aliveProject)
+		}
+
+		// update project commission fees
+
+		aliveProject.FeeBNB,aliveProject.FeeEmbed = GetTradeFees(aliveProject.id)
+		fmt.Printf("MatchProjectForTrades - Update Project Fees. FeeBNB=%f, FeeEmbed=%f\n",
+			aliveProject.FeeBNB, aliveProject.FeeEmbed)
+		if !UpdateProjectFees(aliveProject){
+			fmt.Printf("MatchProjectForTrades - Update Project Fees Fail! Project: %s\n",
+				aliveProject.Symbol)
+		}
+
+	}else{
+		fmt.Println("MatchProjectForTrades - Warning! new project for asset", aliveProject.Symbol,
+			"not found in my trades history! Project can't be managed.")
+	}
 }
 
 /*

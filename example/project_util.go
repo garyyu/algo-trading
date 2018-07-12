@@ -16,6 +16,7 @@ type ProjectData struct {
 	InitialBalance			 float64	`json:"InitialBalance"`
 	BalanceBase				 float64	`json:"BalanceBase"`
 	AccBalanceBase			 float64	`json:"AccBalanceBase"`
+	AccBalanceLocked	 	 float64	`json:"AccBalanceLocked"`
 	BalanceQuote			 float64	`json:"BalanceQuote"`
 	Roi				 		 float64	`json:"Roi"`
 	RoiS			 		 float64	`json:"RoiS"`
@@ -118,10 +119,10 @@ rowLoop:
 
 		err := rows.Scan(&project.id, &project.Symbol, &project.ForceQuit, &project.QuitProtect,
 			&project.OrderID, &project.ClientOrderID, &project.InitialBalance, &project.BalanceBase,
-			&project.AccBalanceBase, &project.BalanceQuote, &project.Roi, &project.RoiS,
-			&project.InitialPrice, &project.NowPrice, &project.InitialAmount, &project.FeeBNB,
-			&project.FeeEmbed, &project.CreateTime, &transactTime, &project.OrderStatus,
-			&closeTime, &project.IsClosed)
+			&project.AccBalanceBase, &project.AccBalanceLocked, &project.BalanceQuote, &project.Roi,
+			&project.RoiS, &project.InitialPrice, &project.NowPrice, &project.InitialAmount,
+			&project.FeeBNB, &project.FeeEmbed, &project.CreateTime, &transactTime,
+			&project.OrderStatus, &closeTime, &project.IsClosed)
 
 		if err != nil {
 			level.Error(logger).Log("getActiveProjectList - Scan Err:", err)
@@ -215,11 +216,12 @@ func InsertProject(project *ProjectData) int64{
  */
 func UpdateProjectInitialBalance(project *ProjectData) bool{
 
-	query := `UPDATE project_list SET InitialBalance=?, InitialPrice=? WHERE id=?`
+	query := `UPDATE project_list SET InitialBalance=?, InitialPrice=?, InitialAmount=? WHERE id=?`
 
 	res, err := DBCon.Exec(query,
 		project.InitialBalance,
 		project.InitialPrice,
+		project.InitialAmount,
 		project.id,
 	)
 
@@ -301,10 +303,11 @@ func UpdateProjectBalanceBase(project *ProjectData) bool{
  */
 func UpdateProjectAccBalanceBase(project *ProjectData) bool{
 
-	query := `UPDATE project_list SET AccBalanceBase=? WHERE id=?`
+	query := `UPDATE project_list SET AccBalanceBase=?, AccBalanceLocked=? WHERE id=?`
 
 	res, err := DBCon.Exec(query,
 		project.AccBalanceBase,
+		project.AccBalanceLocked,
 		project.id,
 	)
 

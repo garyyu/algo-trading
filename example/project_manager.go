@@ -32,7 +32,37 @@ func ProjectManager(){
 		// import all orders into local database, and map them into related projects
 		GetAllOrders(project.Symbol)
 
-		netBuy,netIncome := GetProjectNetBuy(project.id)
+		// detection of external buy/sell behaviour (增仓/减/清仓), which will update the
+		// 'InitialAmount', 'InitialPrice' and so on.
+		netBuy,netIncome := GetProjectNetBuy(project.id, true)
+		if project.InitialAmount>0 {
+
+			if netBuy > project.InitialAmount {
+				// external buy (增仓) found
+				fmt.Printf("ProjectManager - external buy(增仓) found! increased holding: %f(%s)",
+					netBuy-project.InitialAmount, project.Symbol)
+			} else if netBuy < project.InitialAmount {
+				// external sell (减/清仓) found
+				fmt.Printf("ProjectManager - external sell(减/清仓) found! decreased holding: %f(%s)",
+					project.InitialAmount-netBuy, project.Symbol)
+			}
+
+			if !FloatEquals(netBuy, project.InitialAmount){
+
+				project.InitialAmount = netBuy
+				project.InitialBalance = -netIncome				// Spent = -Income
+				project.InitialPrice = -netIncome / netBuy		// average price if multiple orders
+
+				// update to database
+				if !UpdateProjectInitialBalance(project){
+					fmt.Println("ProjectManager - Warning! Update Project InitialAmount into database Fail. Project:",
+						project.Symbol)
+				}
+			}
+		}
+
+		// sum all orders in project
+		netBuy,netIncome = GetProjectNetBuy(project.id, false)
 		if netBuy == 0 && netIncome == 0 {
 			fmt.Printf("ProjectManager - %s order info not finalized! wait next ticker.\n",
 				project.Symbol)
@@ -58,7 +88,7 @@ func ProjectManager(){
 				project.AccBalanceBase*highestBid.Price)
 
 			project.BalanceBase = netBuy
-			project.IsClosed = true
+			ProjectClose(project)
 		}
 		project.BalanceQuote = netIncome + project.InitialBalance
 
@@ -202,18 +232,31 @@ func GetLatestRoi(symbol string, backTimeWindow float64) *RoiData{
 /*
  * Get Order Net Buy (total Buy - total Sell) for ProjectID, based on database records.
  *	  and Net Income (total Income - total Spent).
+ *
+ * externalOrderOnly: it's used to identify external buy/sell (增仓/减仓), thanks to ClientOrderID
+ *		Our 'auto_trading' order will always have a ClientOrderID with format yyyymmddhhmmssxxxx
+ *
+ * 		ClientOrderID := time.Now().Format("20060102150405") + fmt.Sprintf("%04d",rand.Intn(9999))
  */
-func GetProjectNetBuy(projectId int64) (float64,float64){
+func GetProjectNetBuy(projectId int64, externalOrderOnly bool) (float64,float64){
 	//
 	//fmt.Printf("GetProjectNetBuy - func enter. ProjectID=%d\n", projectId)
 
-	rowBuy := DBCon.QueryRow(
-		"select sum(ExecutedQty),sum(ExecutedQty*Price) from order_list " +
-		"where Side='BUY' and IsDone=1 and ProjectID=?;",
-		projectId)
+	var query string
+	if externalOrderOnly {
+		query = "select sum(if(Side='BUY',ExecutedQty,-ExecutedQty))," +
+			"sum(if(Side='BUY',-ExecutedQty*Price,ExecutedQty*Price)) from order_list " +
+			"where IsDone=1 and ClientOrderID NOT REGEXP '^[0-9]{18}$' and ProjectID=?;"
+	}else{
+		query = "select sum(if(Side='BUY',ExecutedQty,-ExecutedQty))," +
+			"sum(if(Side='BUY',-ExecutedQty*Price,ExecutedQty*Price)) from order_list " +
+			"where IsDone=1 and ProjectID=?;"
+	}
 
-	totalExecutedBuyQty := 0.0
-	totalSpentQuote := 0.0
+	rowBuy := DBCon.QueryRow(query, projectId)
+
+	netBuy := 0.0
+	netIncome := 0.0
 	var t1,t2 NullFloat64
 	errB := rowBuy.Scan(&t1, &t2)
 
@@ -222,40 +265,13 @@ func GetProjectNetBuy(projectId int64) (float64,float64){
 		panic(errB.Error())
 	}
 	if t1.Valid {
-		totalExecutedBuyQty = t1.Float64
+		netBuy = t1.Float64
 	}
 	if t2.Valid {
-		totalSpentQuote = t2.Float64
+		netIncome = t2.Float64
 	}
 
-	// Sum all the Sell
-
-	rowSell := DBCon.QueryRow(
-		"select sum(ExecutedQty),sum(ExecutedQty*Price) from order_list " +
-		"where Side='SELL' and IsDone=1 and ProjectID=?;",
-		projectId)
-
-	totalExecutedSellQty := 0.0
-	totalIncomeQuote := 0.0
-
-	errS := rowSell.Scan(&t1, &t2)
-
-	if errS != nil && errS != sql.ErrNoRows {
-		level.Error(logger).Log("GetProjectSum - DB.Query Fail. Err=", errS)
-		panic(errS.Error())
-	}
-
-	if t1.Valid {
-		totalExecutedSellQty = t1.Float64
-	}
-	if t2.Valid {
-		totalIncomeQuote = t2.Float64
-	}
-
-	//fmt.Println("GetProjectSum - TotalBuyQty:", totalExecutedBuyQty, "TotalSellQty:", totalExecutedSellQty,
-	//	". TotalSpent:", totalSpentQuote, "TotalIncome:", totalIncomeQuote,
-	//	"ProjectId =", projectId)
-	return totalExecutedBuyQty-totalExecutedSellQty, totalIncomeQuote-totalSpentQuote
+	return netBuy, netIncome
 }
 
 /*
