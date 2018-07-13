@@ -9,7 +9,7 @@ import (
 	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
-const MaxKlinesMapSize = 1440 // Minutes
+const MaxKlinesMapSize = 2880		// for 5minutes klines, that's 10 days.
 
 var (
 	SymbolKlinesMapList []map[int64]KlineRo
@@ -19,8 +19,8 @@ var (
 		36,		// 3 Hour
 		72,		// 6 Hour
 		120,	// 10 Hour
-		288,	// 1 Day
-		1440,	// 5 Day
+		1440,//288,	// 1 Day
+		2880,//1440,	// 5 Day
 	}
 )
 
@@ -127,7 +127,8 @@ func RoiSimulate() {
 				nowClose = v.Close
 			}
 		}
-		//fmt.Println("latest OpenTime=", nowOpenTime)
+		//fmt.Printf("%s - latest OpenTime=%s, size of klinesMap=%d\n", symbol,
+		//	nowOpenTime.Format("2006-01-02 15:04:05"), len(klinesMap))
 
 		if nowClose == 0.0 || len(klinesMap) < 5 {
 			level.Error(logger).Log("RoiSimulate.Symbol", symbol, "nowClose", nowClose, "klinesMap", len(klinesMap))
@@ -143,6 +144,9 @@ func RoiSimulate() {
 								nowClose,
 								klinesMap)
 			roiList[j][i] = roiData
+
+			//fmt.Printf("%s - CalcRoi(): klines used=%d for period %d\n",
+			//	symbol, roiData.Klines, N)
 		}
 	}
 
@@ -215,10 +219,12 @@ func CalcRoi(
 	var klinesUsed= 0
 	for n := 1; n <= N; n++ {
 
-		t := nowOpenTime.Add(time.Duration(-(N - n)*5) * time.Minute).Unix()
+		t0 := nowOpenTime.Add(time.Duration(-(N - n)*5) * time.Minute)
+		t := t0.Unix()
 		kline, ok := klinesMap[t]
 		if !ok {
-			//fmt.Println(symbol,"N=",N,"n=",n,"kline missing @ time:", t, " on", -(N - n)*5)
+			//fmt.Println(symbol,"N=",N,"n=",n,"kline missing time:",
+			//	t0.Format("2006-01-02 15:04:05"), " unix=", t, " on", -(N - n)*5)
 			continue
 		}
 

@@ -34,13 +34,14 @@ func InitLocalKlines(interval binance.Interval) {
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume
-				FROM ohlc_` + string(interval) + " WHERE Symbol=? order by OpenTime desc limit 1440;"
+				FROM ohlc_` + string(interval) + " WHERE Symbol=? order by OpenTime desc limit " +
+				fmt.Sprint(MaxKlinesMapSize)
 
 	// Initialize the global 'SymbolKlinesMapList'
 	totalSymbols := len(SymbolList)
 	SymbolKlinesMapList = make([]map[int64]KlineRo, totalSymbols)
 	for i:=0; i<totalSymbols; i++ {
-		SymbolKlinesMapList[i] =  make(map[int64]KlineRo)
+		SymbolKlinesMapList[i] = make(map[int64]KlineRo, MaxKlinesMapSize)
 	}
 
 	// Query database
@@ -99,6 +100,19 @@ func InitLocalKlines(interval binance.Interval) {
  */
 func PollKlines(interval binance.Interval) {
 
+	var duration time.Duration = 0
+	switch interval{
+	case binance.FiveMinutes:
+		duration = time.Duration(-MaxKlinesMapSize * 5) * time.Minute
+	case binance.Hour:
+		duration = time.Duration(-MaxKlinesMapSize * 1) * time.Hour
+	case binance.Day:
+		duration = time.Duration(-MaxKlinesMapSize * 24) * time.Hour
+	default:
+		fmt.Printf("PollKlines - Error! Interval not supported: %s\n", interval)
+		return
+	}
+
 	fmt.Println("Polling " + string(interval) +
 		" Klines from database ...\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
@@ -136,7 +150,7 @@ func PollKlines(interval binance.Interval) {
 			klinesMap[klineRo.OpenTime.Unix()] = klineRo
 
 			// check if map is over 'MaxKlinesMapSize' limit and prune it
-			oldestKlineTime := klineRo.OpenTime.Add(time.Duration(-MaxKlinesMapSize-5) * time.Minute).Unix()
+			oldestKlineTime := klineRo.OpenTime.Add(duration).Unix()
 			if _, ok := klinesMap[oldestKlineTime]; ok {
 				delete(klinesMap, oldestKlineTime)
 			}

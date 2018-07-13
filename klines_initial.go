@@ -65,11 +65,11 @@ func getLimit(symbol string, interval binance.Interval) int{
 
 	switch interval{
 	case binance.FiveMinutes:
-		limit = 2 + int( math.Max(duration.Minutes() / 5.0, 0) )
+		limit = 3 + int( math.Max(duration.Minutes() / 5.0, 0) )
 	case binance.Hour:
-		limit = 2 + int( math.Max(duration.Hours(), 0) )
+		limit = 3 + int( math.Max(duration.Hours(), 0) )
 	case binance.Day:
-		limit = 2 + int( math.Max(duration.Hours() / 24.0, 0) )
+		limit = 3 + int( math.Max(duration.Hours() / 24.0, 0) )
 	default:
 		return limit
 	}
