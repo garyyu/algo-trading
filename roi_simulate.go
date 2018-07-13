@@ -14,13 +14,13 @@ const MaxKlinesMapSize = 2880		// for 5minutes klines, that's 10 days.
 var (
 	SymbolKlinesMapList []map[int64]KlineRo
 	InvestPeriodList = [...]int{
-		6,		// 0.5Hour
 		12,		// 1 Hour
 		36,		// 3 Hour
 		72,		// 6 Hour
 		120,	// 10 Hour
-		1440,//288,	// 1 Day
-		2880,//1440,	// 5 Day
+		288,	// 24 Hour
+		1440,	// 5 Days
+		2880,	// 10 Days
 	}
 )
 
@@ -28,10 +28,11 @@ var (
 type RoiData struct {
 	Symbol            		 string 	`json:"Symbol"`
 	RoiRank					 int		`json:"RoiRank"`
-	InvestPeriod			 float32	`json:"InvestPeriod"`
+	CashRatio			 	 float64	`json:"CashRatio"`
+	InvestPeriod			 float64	`json:"InvestPeriod"`
 	Klines 					 int		`json:"Klines"`
-	RoiD					 float32	`json:"RoiD"`
-	RoiS					 float32	`json:"RoiS"`
+	RoiD					 float64	`json:"RoiD"`
+	RoiS					 float64	`json:"RoiS"`
 	QuoteAssetVolume         float64	`json:"QuoteAssetVolume"`
 	NumberOfTrades           int		`json:"NumberOfTrades"`
 	OpenTime                 time.Time	`json:"OpenTime"`
@@ -110,6 +111,8 @@ func RoiSimulate() {
 		roiList[i] = make([]RoiData, len(SymbolList))
 	}
 
+	algoDemoList := getAlgoDemoConf()
+
 	// calculation of ROI
 	for i, symbol := range SymbolList {
 
@@ -137,12 +140,19 @@ func RoiSimulate() {
 
 		for j, N := range InvestPeriodList {
 
+			demo := false
+			algoDemoConf,ok := algoDemoList[symbol]
+			if ok && N==algoDemoConf.Hours*12 {
+				demo = true
+			}
+
 			roiData := CalcRoi(symbol,
 								N,
 								nowOpenTime,
 								nowCloseTime,
 								nowClose,
-								klinesMap)
+								klinesMap,
+								demo)
 			roiList[j][i] = roiData
 
 			//fmt.Printf("%s - CalcRoi(): klines used=%d for period %d\n",
@@ -204,11 +214,12 @@ func CalcRoi(
 		nowOpenTime time.Time,
 		nowCloseTime time.Time,
 		nowClose float64,
-		klinesMap map[int64]KlineRo) RoiData{
+		klinesMap map[int64]KlineRo,
+		demo bool) RoiData{
 
-	var Initial = 10000.0     // in asset
-	var balanceBase = Initial // in asset
-	var balanceQuote = 0.0    // in btc
+	var InitialAmount = 1000000.0   // in asset
+	var balanceBase = InitialAmount // in asset
+	var balanceQuote = 0.0    		// in btc
 
 	var InitialOpen = 0.0
 	var InitialOpenTime= time.Time{}
@@ -231,6 +242,7 @@ func CalcRoi(
 		klinesUsed += 1
 		if InitialOpen == 0.0 {
 			InitialOpen = kline.Open
+			//InitialBalance = InitialAmount*InitialOpen
 		}
 
 		if InitialOpenTime.IsZero() {
@@ -238,26 +250,43 @@ func CalcRoi(
 		}
 
 		// core function call: auto-trading algorithm
-		algoSellRise(&balanceBase, &balanceQuote, &kline, InitialOpen)
+		buy,sell := algoSellRise(&balanceBase, &balanceQuote, &kline, InitialAmount, InitialOpen, demo)
+		if demo {
+			fmt.Printf("CalcRoi - Demo: %s %s Ratio=%.1f%%. Sell=%.1f%%, Buy=%.1f%%. CashRatio=%.1f%%\n",
+				symbol,
+				kline.CloseTime.Format("2006-01-02 15:04:05"),
+				(kline.Close - InitialOpen)/InitialOpen*100.0,
+				sell/InitialAmount*100.0, buy/InitialAmount*100.0,
+				balanceQuote/(balanceBase*nowClose+balanceQuote)*100.0)
+		}
 
 		QuoteAssetVolume += kline.QuoteAssetVolume
 		NumberOfTrades += kline.NumberOfTrades
 	}
 
 	// save the result
-	roiD := (balanceBase*nowClose+balanceQuote)/(Initial*InitialOpen) - 1.0
+	roiD := (balanceBase*nowClose+balanceQuote)/(InitialAmount*InitialOpen) - 1.0
 	roiS := nowClose/InitialOpen - 1.0
 	roiData := RoiData{
 		Symbol:       symbol,
 		RoiRank:         0,
-		InvestPeriod: float32(N) * 5.0 / 60.0,
+		CashRatio:	  balanceQuote/(balanceBase*nowClose+balanceQuote),
+		InvestPeriod: float64(N) * 5.0 / 60.0,
 		Klines:       klinesUsed,
-		RoiD:         float32(roiD),
-		RoiS:		  float32(roiS),
+		RoiD:         roiD,
+		RoiS:		  roiS,
 		QuoteAssetVolume: 	QuoteAssetVolume,
 		NumberOfTrades: 	NumberOfTrades,
 		OpenTime:			InitialOpenTime,
 		EndTime:      		nowCloseTime,
+	}
+
+	if demo {
+		fmt.Printf("\nCalcRoi - Demo Done. %s InHours=%.1f, RoiD=%.1f%%, RoiS=%.1f%%. CashRatio=%.1f%%.\n",
+			symbol,
+			roiData.InvestPeriod,
+			roiD*100.0, roiS*100.0,
+			roiData.CashRatio*100.0)
 	}
 
 	return roiData
@@ -274,13 +303,14 @@ func InsertRoi(roiData *RoiData){
 	}
 
 	query := `INSERT INTO roi_5m (
-				Symbol, RoiRank, InvestPeriod, Klines, RoiD, RoiS, QuoteAssetVolume, NumberOfTrades, 
+				Symbol, RoiRank, CashRatio, InvestPeriod, Klines, RoiD, RoiS, QuoteAssetVolume, NumberOfTrades, 
 				OpenTime, EndTime, AnalysisTime
-			  ) VALUES (?,?,?,?,?,?,?,?,?,?,NOW())`
+			  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW())`
 
 	_, err := DBCon.Exec(query,
 					roiData.Symbol,
 					roiData.RoiRank,
+					roiData.CashRatio,
 					roiData.InvestPeriod,
 					roiData.Klines,
 					roiData.RoiD,

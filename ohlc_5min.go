@@ -43,7 +43,10 @@ loop:
 			totalQueryRet = 0
 			totalQueryNewRet = 0
 			for _,symbol := range SymbolList {
-				rowsNum,rowsNewNum := getKlinesData(symbol, 2, interval)
+
+				limit := getLimit(symbol, interval)
+
+				rowsNum,rowsNewNum := getKlinesData(symbol, limit, interval)
 				totalQueryRet += rowsNum
 				totalQueryNewRet += rowsNewNum
 

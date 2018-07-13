@@ -253,7 +253,8 @@ func GetLatestRoi(symbol string, backTimeWindow float64) *RoiData{
 		nowOpenTime,
 		nowCloseTime,
 		nowClose,
-		klinesMap)
+		klinesMap,
+		false)
 
 	return &roiData
 }

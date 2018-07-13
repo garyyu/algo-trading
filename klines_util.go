@@ -71,7 +71,7 @@ func getKlinesData(symbol string, limit int, interval binance.Interval) (int,int
 			continue
 		}
 
-		if limit > 2 {
+		if limit > 3 {
 			fmt.Printf("%s - %s received %d %s-klines\n",
 				time.Now().Format("2006-01-02 15:04:05.004005683"), symbol, len(kl), string(interval))
 		}

@@ -15,7 +15,8 @@ import (
  */
 func InitialKlines(interval binance.Interval){
 
-	fmt.Println("\nInitialize", string(interval), "KLines from Binance ...\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Println("\nInitialize", string(interval), "KLines from Binance ...\t",
+		time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	var totalQueryRet = 0
 	var totalQueryNewRet = 0
@@ -61,20 +62,22 @@ func getLimit(symbol string, interval binance.Interval) int{
 		return MAXLIMIT
 	}
 
-	duration := time.Since(OpenTime)
+	//TODO: How to Get Timezone Info? For example:  GMT+8 for me here in my MySQL.
+	duration := time.Since(OpenTime.Add(-8*time.Hour))
 
 	switch interval{
 	case binance.FiveMinutes:
-		limit = 3 + int( math.Max(duration.Minutes() / 5.0, 0) )
+		limit = 2 + int( math.Max(duration.Minutes() / 5.0, 0) )
 	case binance.Hour:
-		limit = 3 + int( math.Max(duration.Hours(), 0) )
+		limit = 2 + int( math.Max(duration.Hours(), 0) )
 	case binance.Day:
-		limit = 3 + int( math.Max(duration.Hours() / 24.0, 0) )
+		limit = 2 + int( math.Max(duration.Hours() / 24.0, 0) )
 	default:
 		return limit
 	}
 	//
-	//fmt.Printf("getLimit - %s:%s limit=%d\n",symbol, interval, limit)
+	//fmt.Printf("getLimit - %s:%s limit=%d OpenTime=%s. duration=%s\n",
+	//	symbol, interval, limit, OpenTime.Format("2006-01-02 15:04:05"), duration.String())
 
 	if limit>MAXLIMIT{
 		limit = MAXLIMIT

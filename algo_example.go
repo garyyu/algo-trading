@@ -9,8 +9,11 @@ import "math"
  *						 otherwise, buy the loss part if having enough balance quote.
  *  To make the remain
  */
-func algoExample(balanceBase *float64, balanceQuote *float64,
-	kline *KlineRo, initialPrice float64) (float64,float64){
+func algoExample(balanceBase *float64,
+				 balanceQuote *float64,
+				 kline *KlineRo,
+				 initialAmount float64,
+				 initialPrice float64) (float64,float64){
 
 	sell := 0.0
 	buy := 0.0
