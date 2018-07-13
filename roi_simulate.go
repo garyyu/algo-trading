@@ -7,7 +7,7 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"bitbucket.org/garyyu/go-binance"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 const MaxKlinesMapSize = 1440 // Minutes

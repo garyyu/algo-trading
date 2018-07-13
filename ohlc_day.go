@@ -1,17 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"time"
-	"bitbucket.org/garyyu/go-binance"
+	"fmt"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 /*
- * KLines Data Updating. 5Min Lines
+ * Daily KLines
  */
-func HourlyOhlcRoutine() {
+func DailyOhlcRoutine() {
 
-	interval := binance.Hour
+	interval := binance.Day
 
 	totalQueryRet := 0
 	totalQueryNewRet := 0
@@ -20,7 +20,7 @@ func HourlyOhlcRoutine() {
 		time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	// then we start a goroutine to get realtime data in intervals
-	ticker := minuteTicker()
+	ticker := dayTicker()
 	var tickerCount = 0
 loop:
 	for  {
@@ -33,6 +33,10 @@ loop:
 			tickerCount += 1
 			fmt.Printf("%s KlineTick: \t\t%s\t%d\n", string(interval),
 				tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
+			_, min, _ := tick.Clock()
+			if min % 5 == 0 {
+				time.Sleep(5 * time.Second) // wait 5 seconds to ensure server data ready.
+			}
 
 			csvPollList := getCsvPollConf(interval)
 
@@ -48,13 +52,13 @@ loop:
 					csvPolling(symbol, interval)
 				}
 			}
-			fmt.Println("Poll", interval, "Klines from Binance -", len(SymbolList), "symbols.",
-				"average:", float32(totalQueryRet)/float32(len(SymbolList)),
-				"average new:", float32(totalQueryNewRet)/float32(len(SymbolList)),
+			fmt.Println("Poll", interval, "Klines from Binance - ", len(SymbolList), "symbols",
+				" average KLines:", float32(totalQueryRet)/float32(len(SymbolList)),
+				" average new KLines:", float32(totalQueryNewRet)/float32(len(SymbolList)),
 				"\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 			// Update the ticker
-			ticker = minuteTicker()
+			ticker = dayTicker()
 
 		default:
 			time.Sleep(100 * time.Millisecond)
@@ -64,10 +68,11 @@ loop:
 	fmt.Println("goroutine exited - updateOhlc", string(interval))
 }
 
-func hourTicker() *time.Ticker {
+func dayTicker() *time.Ticker {
 
 	now := time.Now()
 	return time.NewTicker(
-		time.Second * time.Duration(60-now.Second()) -
-			time.Nanosecond * time.Duration(now.Nanosecond()))
+		time.Minute * time.Duration(60-now.Minute()) -
+		time.Second * time.Duration(now.Second()) -
+		time.Nanosecond * time.Duration(now.Nanosecond()))
 }

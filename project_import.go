@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/go-kit/kit/log/level"
 	"fmt"
-	"bitbucket.org/garyyu/go-binance"
 	"time"
 	"math/rand"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 type TradeData struct {

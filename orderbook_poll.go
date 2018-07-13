@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bitbucket.org/garyyu/go-binance"
 	"github.com/go-kit/kit/log/level"
 	"time"
 	"fmt"
 	"strconv"
 	"strings"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 type ObType int

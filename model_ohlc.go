@@ -3,8 +3,8 @@ package main
 
 import (
 	"time"
-	"bitbucket.org/garyyu/go-binance"
 	"github.com/go-kit/kit/log/level"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 type OhlcDbTbl struct {

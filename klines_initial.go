@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bitbucket.org/garyyu/go-binance"
 	"fmt"
 	"time"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 /*

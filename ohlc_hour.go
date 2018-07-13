@@ -3,15 +3,15 @@ package main
 import (
 	"fmt"
 	"time"
-	"bitbucket.org/garyyu/go-binance"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 /*
  * KLines Data Updating. 5Min Lines
  */
-func Ohlc5MinRoutine() {
+func HourlyOhlcRoutine() {
 
-	interval := binance.FiveMinutes
+	interval := binance.Hour
 
 	totalQueryRet := 0
 	totalQueryNewRet := 0
@@ -33,10 +33,6 @@ loop:
 			tickerCount += 1
 			fmt.Printf("%s KlineTick: \t\t%s\t%d\n", string(interval),
 				tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
-			_, min, _ := tick.Clock()
-			if min % 5 == 0 {
-				time.Sleep(5 * time.Second) // wait 5 seconds to ensure server data ready.
-			}
 
 			csvPollList := getCsvPollConf(interval)
 
@@ -68,8 +64,8 @@ loop:
 	fmt.Println("goroutine exited - updateOhlc", string(interval))
 }
 
-func minuteTicker() *time.Ticker {
-	// Return new ticker that triggers on the minute
+func hourTicker() *time.Ticker {
+
 	now := time.Now()
 	return time.NewTicker(
 		time.Second * time.Duration(60-now.Second()) -

@@ -3,9 +3,9 @@ package main
 import (
 	"time"
 	"github.com/go-kit/kit/log/level"
-	"bitbucket.org/garyyu/go-binance"
 	"fmt"
 	"database/sql"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 func getKlineId(symbol string, openTime time.Time, table string) (int64,time.Time,int){

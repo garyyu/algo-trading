@@ -3,10 +3,10 @@ package main
 import (
 	"github.com/go-kit/kit/log/level"
 	"fmt"
-	"bitbucket.org/garyyu/go-binance"
 	"time"
 	"database/sql"
 	"sort"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 var (

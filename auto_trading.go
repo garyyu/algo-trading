@@ -5,9 +5,9 @@ import (
 	"math/rand"
 	"sync"
 	"fmt"
-	"bitbucket.org/garyyu/go-binance"
 	"github.com/go-kit/kit/log/level"
 	"math"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 type TimePrice struct {

@@ -3,10 +3,10 @@ package main
 import (
 	"time"
 	"github.com/go-kit/kit/log/level"
-	"bitbucket.org/garyyu/go-binance"
 	"fmt"
 	"os"
 	"os/exec"
+	"bitbucket.org/garyyu/go-binance/go-binance"
 )
 
 type CsvPollType int
