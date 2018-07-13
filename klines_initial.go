@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"bitbucket.org/garyyu/algo-trading/go-binance"
+	"math"
 )
 
 /*
@@ -14,45 +15,13 @@ import (
  */
 func InitialKlines(interval binance.Interval){
 
-	var symbol string
-
 	fmt.Println("Initialize", string(interval), "KLines from Binance ...\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	var totalQueryRet = 0
 	var totalQueryNewRet = 0
 
 initialDataLoop:
-	for _,symbol = range SymbolList {
-
-		//query database if it's a new import symbol.
-		rows, err := DBCon.Query("select count(id) as count from ohlc_" + string(interval) +
-			" where Symbol='" + symbol + "'")
-		if err != nil {
-			panic(err.Error())
-		}
-
-		var count int // we "scan" the result in here
-		for rows.Next() {
-			err := rows.Scan(&count)
-			if err != nil {
-				count = 0
-			}
-		}
-		rows.Close()
-
-		var rowsNum = 0
-		var rowsNewNum = 0
-		if count == 0 {
-			rowsNum,rowsNewNum = getKlinesData(symbol, 1000,
-				interval)											// 1000*5 = 5000(Mins) = 83 (hours) ~= 3.5 (days)
-			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
-		}else{
-			rowsNum,rowsNewNum = getKlinesData(symbol, 12,
-				interval)											// 12*5 = 60(Mins) = 1 (hour)
-			time.Sleep(10 * time.Millisecond)						// avoid being baned by server
-		}
-		totalQueryRet += rowsNum
-		totalQueryNewRet += rowsNewNum
+	for i,symbol := range SymbolList {
 
 		select {
 		case _ = <- routinesExitChan:
@@ -62,9 +31,55 @@ initialDataLoop:
 			time.Sleep(10 * time.Millisecond)
 		}
 
+		var rowsNum = 0
+		var rowsNewNum = 0
+
+		fmt.Printf("\b\b\b\b\b\b%.1f%% ", float64(i+1)*100.0/float64(len(SymbolList)))
+
+		limit := getLimit(symbol, interval)
+
+		rowsNum,rowsNewNum = getKlinesData(symbol, limit, interval)
+		time.Sleep(10 * time.Millisecond)	// avoid being baned by server
+
+		totalQueryRet += rowsNum
+		totalQueryNewRet += rowsNewNum
+
 	}
-	fmt.Println(string(interval), "KLines Initialization Done -", len(SymbolList), "symbols.",
-		"average:", float32(totalQueryRet)/float32(len(SymbolList)),
-		"average new:", float32(totalQueryNewRet)/float32(len(SymbolList)))
+	fmt.Printf("\n%s KLines Initialization Done. - %d symbols. average: %.2f, average new: %.2f\n",
+		string(interval), len(SymbolList),
+		float32(totalQueryRet)/float32(len(SymbolList)),
+		float32(totalQueryNewRet)/float32(len(SymbolList)))
+}
+
+func getLimit(symbol string, interval binance.Interval) int{
+
+	const MAXLIMIT = 1000			// 1000*5 = 5000(Min) = 83 (hours) ~= 3.5 (days)
+	limit := 12						//   12*5 = 60(Min)   = 1 Hour
+
+	OpenTime := GetOpenTime(symbol, interval)
+	if OpenTime.IsZero() {
+		return MAXLIMIT
+	}
+
+	duration := time.Since(OpenTime)
+
+	switch interval{
+	case binance.FiveMinutes:
+		limit = 2 + int( math.Max(duration.Minutes() / 5.0, 0) )
+	case binance.Hour:
+		limit = 2 + int( math.Max(duration.Hours(), 0) )
+	case binance.Day:
+		limit = 2 + int( math.Max(duration.Hours() / 24.0, 0) )
+	default:
+		return limit
+	}
+	//
+	//fmt.Printf("getLimit - %s:%s limit=%d\n",symbol, interval, limit)
+
+	if limit>MAXLIMIT{
+		limit = MAXLIMIT
+	}
+
+	return limit
 }
 
