@@ -28,8 +28,9 @@ type KlineRo struct {
  */
 func InitLocalKlines(interval binance.Interval) {
 
-	fmt.Println("Loading", string(interval),
-		"Klines from database ...\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Printf("\nLoading %s Klines from database ...\t\t\t%s\n",
+		string(interval),
+		time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume
@@ -44,7 +45,19 @@ func InitLocalKlines(interval binance.Interval) {
 
 	// Query database
 	var totalQueryRet = 0
+
+	initialDataLoop:
 	for i,symbol := range SymbolList {
+
+		select {
+		case _ = <- routinesExitChan:
+			break initialDataLoop
+
+		default:
+			time.Sleep(1 * time.Millisecond)
+		}
+
+		fmt.Printf("\b\b\b\b\b\b%.1f%% ", float64(i+1)*100.0/float64(len(SymbolList)))
 
 		rows, err := DBCon.Query(sqlStatement, symbol)
 
@@ -74,10 +87,11 @@ func InitLocalKlines(interval binance.Interval) {
 		//fmt.Println("InitKlines - ", symbol, "got", rowsNum)
 		totalQueryRet += rowsNum
 	}
-	fmt.Println("LoadKlines", string(interval), " - ", len(SymbolList), "symbols.", "average:",
-		float32(totalQueryRet)/float32(len(SymbolList)),
-		"\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
+	fmt.Printf("\n%s KLines Loading Done. - %d symbols. average: %.2f\t%s\n",
+		string(interval), len(SymbolList),
+		float32(totalQueryRet)/float32(len(SymbolList)),
+		time.Now().Format("2006-01-02 15:04:05.004005683"))
 }
 
 /*

@@ -15,7 +15,7 @@ import (
  */
 func InitialKlines(interval binance.Interval){
 
-	fmt.Println("Initialize", string(interval), "KLines from Binance ...\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	fmt.Println("\nInitialize", string(interval), "KLines from Binance ...\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	var totalQueryRet = 0
 	var totalQueryNewRet = 0
