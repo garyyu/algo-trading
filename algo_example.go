@@ -1,26 +1,35 @@
 package main
 
-import (
-	"math"
-	)
+import "math"
 
-func algoExample(balanceBase float64, balanceQuote float64, kline *KlineRo) (float64,float64){
+/*
+ * A simple example algorithm, just for demo purpose.
+ * Description:
+ *	Based on each KLine, if Close price > Open price, sell the gain part;
+ *						 otherwise, buy the loss part if having enough balance quote.
+ *  To make the remain
+ */
+func algoExample(balanceBase *float64, balanceQuote *float64,
+	kline *KlineRo, initialPrice float64) (float64,float64){
 
 	sell := 0.0
 	buy := 0.0
 
-	gain := (kline.Close - kline.Open) * balanceBase
+	gain := *balanceBase * (kline.Close - kline.Open)
 	if gain > 0 {
-		sell = math.Min(gain, kline.Close*balanceBase)
-		if sell < MinOrderTotal { // note: $8 = 0.001btc on $8k/btc
+		sell = math.Min(gain, *balanceBase * kline.Close)
+		if sell < MinOrderTotal {
 			sell = 0
 		}
 	} else if gain < 0 {
-		buy = math.Min(balanceQuote, -gain)
-		if buy < MinOrderTotal {  // note: $8 = 0.001btc on $8k/btc
+		buy = math.Min(*balanceQuote, -gain)
+		if buy < MinOrderTotal {
 			buy = 0
 		}
 	}
+
+	*balanceQuote += sell - buy
+	*balanceBase += (buy - sell)/kline.Close
 
 	return buy,sell
 }

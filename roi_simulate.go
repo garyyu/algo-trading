@@ -4,7 +4,6 @@ import (
 	"time"
 	"github.com/go-kit/kit/log/level"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 	"bitbucket.org/garyyu/algo-trading/go-binance"
@@ -14,7 +13,15 @@ const MaxKlinesMapSize = 1440 // Minutes
 
 var (
 	SymbolKlinesMapList []map[int64]KlineRo
-	InvestPeriodList = [...]int{6,12,36,72,120,288,1440}	// n*5 Mins
+	InvestPeriodList = [...]int{
+		6,		// 0.5Hour
+		12,		// 1 Hour
+		36,		// 3 Hour
+		72,		// 6 Hour
+		120,	// 10 Hour
+		288,	// 1 Day
+		1440,	// 5 Day
+	}
 )
 
 
@@ -147,7 +154,7 @@ func RoiSimulate() {
 
 		// Top 3 winners
 		sort.Slice(roiList[j], func(m, n int) bool {
-			return roiList[j][m].RoiS > roiList[j][n].RoiS
+			return roiList[j][m].RoiD > roiList[j][n].RoiD
 		})
 
 		for q := range SymbolList {
@@ -224,23 +231,8 @@ func CalcRoi(
 			InitialOpenTime = kline.OpenTime
 		}
 
-		sell := 0.0
-		buy := 0.0
-		gain := (kline.Close - kline.Open) * balanceBase
-		if gain > 0 {
-			sell = math.Min(gain, kline.Close*balanceBase)
-			if sell < MinOrderTotal { // note: $8 = 0.001btc on $8k/btc
-				sell = 0
-			}
-		} else if gain < 0 {
-			buy = math.Min(balanceQuote, -gain)
-			if buy < MinOrderTotal {  // note: $8 = 0.001btc on $8k/btc
-				buy = 0
-			}
-		}
-
-		balanceQuote += sell - buy
-		balanceBase += (buy - sell)/kline.Close
+		// core function call: auto-trading algorithm
+		algoSellRise(&balanceBase, &balanceQuote, &kline, InitialOpen)
 
 		QuoteAssetVolume += kline.QuoteAssetVolume
 		NumberOfTrades += kline.NumberOfTrades
