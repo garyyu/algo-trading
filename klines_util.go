@@ -5,7 +5,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"fmt"
 	"database/sql"
-	"bitbucket.org/garyyu/go-binance/go-binance"
+	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
 func getKlineId(symbol string, openTime time.Time, table string) (int64,time.Time,int){

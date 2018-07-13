@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"bitbucket.org/garyyu/go-binance/go-binance"
+	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
 type ObType int

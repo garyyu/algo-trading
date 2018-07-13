@@ -4,7 +4,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"time"
 	"fmt"
-	"bitbucket.org/garyyu/go-binance/go-binance"
+	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
 type KlineRo struct {

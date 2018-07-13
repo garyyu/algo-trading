@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"database/sql"
 	"sort"
-	"bitbucket.org/garyyu/go-binance/go-binance"
+	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
 var (

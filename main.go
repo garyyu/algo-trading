@@ -10,7 +10,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"os/signal"
 	"time"
-	"bitbucket.org/garyyu/go-binance/go-binance"
+	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
 var (

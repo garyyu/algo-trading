@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/go-kit/kit/log/level"
 	"math"
-	"bitbucket.org/garyyu/go-binance/go-binance"
+	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
 type TimePrice struct {

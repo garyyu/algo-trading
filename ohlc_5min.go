@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
-	"bitbucket.org/garyyu/go-binance/go-binance"
+	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
 /*

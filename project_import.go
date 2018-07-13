@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 	"math/rand"
-	"bitbucket.org/garyyu/go-binance/go-binance"
+	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
 type TradeData struct {
