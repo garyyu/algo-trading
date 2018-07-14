@@ -240,7 +240,7 @@ func InsertProject(project *ProjectData) int64{
 func UpdateProjectInitialBalance(project *ProjectData) bool{
 
 	query := `UPDATE project_list SET InitialBalance=?, InitialPrice=?, 
-				InitialAmount=? FilledProfit=? WHERE id=?`
+				InitialAmount=?, FilledProfit=? WHERE id=?`
 
 	res, err := DBCon.Exec(query,
 		project.InitialBalance,

@@ -101,7 +101,7 @@ func autoTradingSum(project *ProjectData, nowPrice float64){
 		ProjectClose(project)
 	}
 
-	project.BalanceQuote = netIncome + project.InitialBalance
+	project.BalanceQuote = netIncome
 }
 
 /* Detection of external buy/sell behaviour (增仓/减/清仓), which will update the

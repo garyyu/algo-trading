@@ -80,7 +80,7 @@ var SymbolList = [...]string{
 	"AIONBTC",
 	"SUBBTC",
 	"DNTBTC",
-	"TNBBTC",
+	//"TNBBTC",	// remove this boring one
 	"STEEMBTC",
 	"BTSBTC",
 	"BCPTBTC",
