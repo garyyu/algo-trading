@@ -18,7 +18,7 @@ var SymbolList = [...]string{
 	"QKCBTC",
 	"BCDBTC",
 	"BCCBTC",
-	"BCNBTC",
+	//"BCNBTC",		// remove this boring one
 	"BNBBTC",
 	"XLMBTC",
 	"LTCBTC",

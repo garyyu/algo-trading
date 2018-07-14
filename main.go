@@ -85,11 +85,15 @@ func main() {
 
 func startMainRoutines(){
 
+	// downloading latest K lines data from Binance server
 	InitialKlines(binance.FiveMinutes)
 	InitialKlines(binance.Hour)
 	InitialKlines(binance.Day)
 
+	// loading K lines into memory from local database
 	InitLocalKlines(binance.FiveMinutes)
+
+	//----- 					all routines 					-----//
 
 	go OrderBookRoutine()
 
@@ -98,8 +102,26 @@ func startMainRoutines(){
 	go DailyOhlcRoutine()
 
 	// now it's good time to start ROI analysis routine
-	go RoiRoutine()
+	//go RoiRoutine()
+
+	go HotspotRoutine()
 
 	// also start project manager
 	go ProjectRoutine()
+
+	//-----   repeat loading from database for latest K lines	-----//
+
+	loop:
+	for  {
+		select {
+		case _ = <- routinesExitChan:
+			break loop
+
+		default:
+			RefreshKlines(binance.FiveMinutes)
+			time.Sleep(15 * time.Second)
+		}
+	}
+
+	return
 }

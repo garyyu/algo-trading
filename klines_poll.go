@@ -98,7 +98,7 @@ func InitLocalKlines(interval binance.Interval) {
 /*
  * This is a periodic polling from local database for latest Klines, in 1 minute interval.
  */
-func PollKlines(interval binance.Interval) {
+func RefreshKlines(interval binance.Interval) {
 
 	var duration time.Duration = 0
 	switch interval{
@@ -112,9 +112,9 @@ func PollKlines(interval binance.Interval) {
 		fmt.Printf("PollKlines - Error! Interval not supported: %s\n", interval)
 		return
 	}
-
-	fmt.Println("Polling " + string(interval) +
-		" Klines from database ...\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	//
+	//fmt.Println("Refreshing " + string(interval) +
+	//	" Klines from database ...\t\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 	sqlStatement := `SELECT id,Symbol,OpenTime,Open,High,Low,Close,Volume,CloseTime,
 				QuoteAssetVolume,NumberOfTrades,TakerBuyBaseAssetVolume,TakerBuyQuoteAssetVolume
@@ -159,8 +159,8 @@ func PollKlines(interval binance.Interval) {
 		totalQueryRet += rowsNum
 	}
 
-	fmt.Println("PollKlines", string(interval), " - ", len(SymbolList), "symbols.", " average:",
-		float32(totalQueryRet)/float32(len(SymbolList)),
-		"\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+	//fmt.Println("RefreshKlines", string(interval), " - ", len(SymbolList), "symbols.", " average:",
+	//	float32(totalQueryRet)/float32(len(SymbolList)),
+	//	"\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
 }
 

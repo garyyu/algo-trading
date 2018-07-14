@@ -6,21 +6,20 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"bitbucket.org/garyyu/algo-trading/go-binance"
 )
 
-const MaxKlinesMapSize = 2880		// for 5minutes klines, that's 10 days.
+const MaxKlinesMapSize = 1440		// for 5minutes klines, that's 5 days.
 
 var (
 	SymbolKlinesMapList []map[int64]KlineRo
 	InvestPeriodList = [...]int{
 		12,		// 1 Hour
-		36,		// 3 Hour
-		72,		// 6 Hour
-		120,	// 10 Hour
+		48,		// 4 Hour
+		96,		// 8 Hour
 		288,	// 24 Hour
 		1440,	// 5 Days
 		2880,	// 10 Days
+		5760,	// 20 Days
 	}
 )
 
@@ -59,8 +58,6 @@ loop:
 
 			tickerCount += 1
 			fmt.Printf("RoiAnTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)
-
-			PollKlines(binance.FiveMinutes)
 
 			RoiSimulate()
 
@@ -177,7 +174,7 @@ func RoiSimulate() {
 			i := len(SymbolList)-1-q
 
 			roiList[j][i].RoiRank = i + 1
-			if i < 3{
+			if i < 10{
 				//fmt.Printf("RoiTop3Winer - %v\n", roiList[j][i])
 
 				// Insert to Database
@@ -250,12 +247,13 @@ func CalcRoi(
 		}
 
 		// core function call: auto-trading algorithm
-		buy,sell := algoSellRise(&balanceBase, &balanceQuote, &kline, InitialAmount, InitialOpen, demo)
+		buy,sell := algoExample(&balanceBase, &balanceQuote, &kline, InitialAmount, InitialOpen, demo)
 		if demo {
-			fmt.Printf("CalcRoi - Demo: %s %s Ratio=%.1f%%. Sell=%.1f%%, Buy=%.1f%%. CashRatio=%.1f%%\n",
+			fmt.Printf("CalcRoi - Demo: %s %s Ratio=%.1f%%. KLineRatio=%.1f%%, Sell=%.1f%%, Buy=%.1f%%. CashRatio=%.1f%%\n",
 				symbol,
 				kline.CloseTime.Format("2006-01-02 15:04:05"),
 				(kline.Close - InitialOpen)/InitialOpen*100.0,
+				(kline.Close - kline.Open)/InitialOpen*100.0,
 				sell/InitialAmount*100.0, buy/InitialAmount*100.0,
 				balanceQuote/(balanceBase*nowClose+balanceQuote)*100.0)
 		}

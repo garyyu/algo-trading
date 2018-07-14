@@ -25,7 +25,7 @@ loop:
 		case tick := <-ticker.C:
 			ticker.Stop()
 
-			RoiReport()
+			//RoiReport()
 
 			tickerCount += 1
 			fmt.Printf("ProjectTick: \t\t%s\t%d\n", tick.Format("2006-01-02 15:04:05.004005683"), tickerCount)

@@ -9,12 +9,12 @@ import (
 
 func RoiReport() {
 
-	shellExec("",240.0)
+	//shellExec("",480.0)
+	//shellExec("",240.0)
 	shellExec("",120.0)
 	shellExec("",24.0)
-	shellExec("",10.0)
-	shellExec("",6.0)
-	shellExec("",3.0)
+	shellExec("",8.0)
+	shellExec("",4.0)
 	shellExec("",1.0)
 
 	//cmd := "select u.Symbol,sum(u.RoiRank)/count(u.RoiRank) as AverageRoiRank,count(u.RoiRank) as Count," +
@@ -25,6 +25,16 @@ func RoiReport() {
 	//	"where RoiRank>0 order by id desc limit 21) as u group by u.Symbol order by AverageRoiRank;"
 	//
 	//shellExec(cmd, 0.0)
+
+}
+
+func HotspotReport(){
+
+	cmd := "select Symbol,HotRank,concat(Round(HighLowRatio*100,1),'%') as HighLowRatio,"+
+		"concat(Round(VolumeRatio*100,1),'%') as VolumeRatio,"+
+		"concat(Round(CloseOpenRatio*100,1),'%') as CloseOpenRatio,HLRxVR,Time "+
+		"from hotspot_5m order by id desc limit 18;"
+	shellExec(cmd, 0.0)
 }
 
 func shellExec(cmdOverwrite string, investPeriod float32){

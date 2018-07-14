@@ -55,10 +55,11 @@ loop:
 					csvPolling(symbol, interval)
 				}
 			}
-			fmt.Println("Poll", interval, "Klines from Binance -", len(SymbolList), "symbols.",
-				"average:", float32(totalQueryRet)/float32(len(SymbolList)),
-				"average new:", float32(totalQueryNewRet)/float32(len(SymbolList)),
-				"\t\t", time.Now().Format("2006-01-02 15:04:05.004005683"))
+			//fmt.Printf("Poll %s Klines from Binance - %d symbols. average: %.1f, average new: %.1f\t\t%s\n",
+			//	interval, len(SymbolList),
+			//	float32(totalQueryRet)/float32(len(SymbolList)),
+			//	float32(totalQueryNewRet)/float32(len(SymbolList)),
+			//	time.Now().Format("2006-01-02 15:04:05.004005683"))
 
 			// Update the ticker
 			ticker = minuteTicker()
