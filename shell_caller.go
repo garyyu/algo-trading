@@ -33,7 +33,7 @@ func HotspotReport(){
 	cmd := "select Symbol,HotRank,concat(Round(HighLowRatio*100,1),'%') as HighLowRatio,"+
 		"concat(Round(VolumeRatio*100,1),'%') as VolumeRatio,"+
 		"concat(Round(CloseOpenRatio*100,1),'%') as CloseOpenRatio,HLRxVR,Time,"+
-		",if(HLRxVR>2,'Fever',if(HLRxVR>0.2,'Hot','')) as Level "+
+		"if(HLRxVR>2,'Fever',if(HLRxVR>0.2,'Hot','')) as Level "+
 		"from hotspot_5m order by id desc limit 18;"
 	shellExec(cmd, 0.0)
 }

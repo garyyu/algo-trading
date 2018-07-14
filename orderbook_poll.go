@@ -132,9 +132,10 @@ func getOrderBook(symbol string, limit int) (int,int){
 			saveOrderBook(symbol, "binance.com", ob)
 			bidsNum = len(ob.Bids)
 			asksNum = len(ob.Asks)
-		}else{
-			fmt.Println("getOrderBook: got same LastUpdateID - ", ob.LastUpdateID)
 		}
+		//else{
+		//	fmt.Println("getOrderBook: got same LastUpdateID - ", ob.LastUpdateID)
+		//}
 
 		break
 	}
