@@ -132,12 +132,48 @@ func HotspotSearch() {
 		hotspotList = append(hotspotList, hotspotData)
 	}
 
-	// Sort them
+	// Sort them on VolumeRatio
+	sort.Slice(hotspotList, func(m, n int) bool {
+		return math.Abs(hotspotList[m].VolumeRatio) > math.Abs(hotspotList[n].VolumeRatio)
+	})
+
+	// Saving Top 3 winners on VolumeRatio
+	for q := range SymbolList {
+
+		// reverse the sequence
+		i := len(SymbolList)-1-q
+
+		hotspotList[i].HotRank = i + 1 + 100000
+		if i < 3 {
+			// Insert to Database
+			InsertHotspot(&hotspotList[i])
+		}
+	}
+
+	// Sort them on HighLowRatio
+	sort.Slice(hotspotList, func(m, n int) bool {
+		return math.Abs(hotspotList[m].HighLowRatio) > math.Abs(hotspotList[n].HighLowRatio)
+	})
+
+	// Saving Top 3 winners on HighLowRatio
+	for q := range SymbolList {
+
+		// reverse the sequence
+		i := len(SymbolList)-1-q
+
+		hotspotList[i].HotRank = i + 1 + 1000
+		if i < 3 {
+			// Insert to Database
+			InsertHotspot(&hotspotList[i])
+		}
+	}
+
+	// Sort them on HLRxVR
 	sort.Slice(hotspotList, func(m, n int) bool {
 		return hotspotList[m].HLRxVR > hotspotList[n].HLRxVR
 	})
 
-	// Saving Top 3 winners
+	// Saving Top 3 winners on HLRxVR
 	for q := range SymbolList {
 
 		// reverse the sequence
@@ -149,6 +185,7 @@ func HotspotSearch() {
 			InsertHotspot(&hotspotList[i])
 		}
 	}
+
 }
 
 /*

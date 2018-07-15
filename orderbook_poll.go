@@ -169,7 +169,7 @@ func saveOrderBook(symbol string, exchangeName string, ob *binance.OrderBook) er
 
 	stmt, err := DBCon.Prepare(sqlStr)
 	if err != nil {
-		level.Error(logger).Log("DBCon.Prepare", err)
+		level.Error(logger).Log("DBCon.Prepare", err, "sqlStr.len", len(sqlStr))
 		return err
 	}
 	_, err2 := stmt.Exec(vals...)
@@ -191,7 +191,7 @@ func saveOrderBook(symbol string, exchangeName string, ob *binance.OrderBook) er
 
 	stmt, err3 := DBCon.Prepare(sqlStr)
 	if err3 != nil {
-		level.Error(logger).Log("DBCon.Prepare", err3)
+		level.Error(logger).Log("DBCon.Prepare", err3, "sqlStr.len", len(sqlStr))
 		return err3
 	}
 	_, err4 := stmt.Exec(vals...)

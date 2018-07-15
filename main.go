@@ -40,11 +40,16 @@ func main() {
 	DBCon, err = sql.Open("mysql",
 		os.Getenv("BINANCE_DB_USER")+":"+
 		os.Getenv("BINANCE_DB_PWD")+
-		"@/binance?parseTime=true")
+		"@/binance?parseTime=true&interpolateParams=true")
 	if err != nil {
 		panic(err.Error())
 	}
 	defer DBCon.Close()
+
+	// Configuring sql.DB for Better Performance
+	DBCon.SetMaxOpenConns(128)
+	DBCon.SetMaxIdleConns(128)
+	DBCon.SetConnMaxLifetime(time.Second * 128)
 
 	initialization()
 
