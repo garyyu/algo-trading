@@ -164,11 +164,6 @@ func saveOrderBook(symbol string, exchangeName string, ob *binance.OrderBook) er
 		sqlStr += "(?, ?, ?, ?, ?, NOW()),"
 		vals = append(vals, ob.LastUpdateID, symbol, "Bid", row.Price, row.Quantity)
 	}
-	// Asks
-	for _, row := range ob.Asks {
-		sqlStr += "(?, ?, ?, ?, ?, NOW()),"
-		vals = append(vals, ob.LastUpdateID, symbol, "Ask", row.Price, row.Quantity)
-	}
 	//trim the last ,
 	sqlStr = strings.TrimSuffix(sqlStr, ",")
 
@@ -181,6 +176,28 @@ func saveOrderBook(symbol string, exchangeName string, ob *binance.OrderBook) er
 	if err2 != nil {
 		level.Error(logger).Log("DBCon.Exec", err2)
 		return err2
+	}
+
+
+	// Asks
+	vals = nil
+	sqlStr = "INSERT INTO ob_binance (LastUpdateID, Symbol, Type, Price, Quantity, Time) VALUES "
+	for _, row := range ob.Asks {
+		sqlStr += "(?, ?, ?, ?, ?, NOW()),"
+		vals = append(vals, ob.LastUpdateID, symbol, "Ask", row.Price, row.Quantity)
+	}
+	//trim the last ,
+	sqlStr = strings.TrimSuffix(sqlStr, ",")
+
+	stmt, err3 := DBCon.Prepare(sqlStr)
+	if err3 != nil {
+		level.Error(logger).Log("DBCon.Prepare", err3)
+		return err3
+	}
+	_, err4 := stmt.Exec(vals...)
+	if err4 != nil {
+		level.Error(logger).Log("DBCon.Exec", err4)
+		return err4
 	}
 
 	//id, _ := res.LastInsertId()
