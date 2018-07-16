@@ -126,18 +126,18 @@ func externalTradingSum(project *ProjectData) (float64,float64,bool){
 			// external buy (增仓) found
 			project.FilledProfit = netBuy * project.InitialPrice + netIncome
 
-			fmt.Printf("ProjectManager - external buy(增仓) found! increased holding: %f(%s)",
+			fmt.Printf("ProjectManager - external buy(增仓) found! increased holding: %f(%s)\n",
 				netBuy-project.InitialAmount, project.Symbol)
 
 		} else if netBuy < project.InitialAmount {
 			// external sell (减/清仓) found
 			project.FilledProfit = netBuy * project.InitialPrice + netIncome
 
-			fmt.Printf("ProjectManager - external sell(减/清仓) found! decreased holding: %f(%s)",
+			fmt.Printf("ProjectManager - external sell(减/清仓) found! decreased holding: %f(%s)\n",
 				project.InitialAmount-netBuy, project.Symbol)
 		}
 
-		if !FloatEquals(netBuy, project.InitialAmount){
+		if !FloatEquals(netBuy, project.InitialAmount) && netBuy!=0{
 
 			project.InitialAmount = netBuy
 			project.InitialPrice = (project.FilledProfit-netIncome) / netBuy		// average price
