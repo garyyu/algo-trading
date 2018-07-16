@@ -83,7 +83,8 @@ func GetAllOrders(symbol string){
 
 		// check if this order is done
 		IsDone := false
-		if executedOrder.Status == binance.StatusPartiallyFilled {
+		if executedOrder.Status == binance.StatusPartiallyFilled ||
+			executedOrder.Status == binance.StatusNew {
 			IsDone = false
 		} else if executedOrder.IsWorking {
 			IsDone = true
@@ -228,7 +229,8 @@ func QueryOrders(){
 		openOrder.executedOrder = *executedOrder
 
 		// check if this order is done
-		if executedOrder.Status == binance.StatusPartiallyFilled {
+		if executedOrder.Status == binance.StatusPartiallyFilled ||
+			executedOrder.Status == binance.StatusNew {
 			openOrder.IsDone = false
 		} else if executedOrder.IsWorking {
 			openOrder.IsDone = true
