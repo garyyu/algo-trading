@@ -13,7 +13,14 @@ import (
  *		- If local database is empty (for one Symbol), download 1000 (max allowed by Binance) data;
  *		- Otherwise, download number according to required missed time.
  */
-func InitialKlines(interval binance.Interval){
+func InitialKlines(interval binance.Interval, forAllSymbols bool){
+
+	var SymbolList *[]string
+	if forAllSymbols{
+		SymbolList = &AllSymbolList
+	}else{
+		SymbolList = &LivelySymbolList
+	}
 
 	fmt.Println("\nInitialize", string(interval), "KLines from Binance ...\t",
 		time.Now().Format("2006-01-02 15:04:05.004005683"))
@@ -22,7 +29,7 @@ func InitialKlines(interval binance.Interval){
 	var totalQueryNewRet = 0
 
 initialDataLoop:
-	for i,symbol := range SymbolList {
+	for i,symbol := range *SymbolList {
 
 		select {
 		case _ = <- routinesExitChan:
@@ -35,7 +42,7 @@ initialDataLoop:
 		var rowsNum = 0
 		var rowsNewNum = 0
 
-		fmt.Printf("\b\b\b\b\b\b%.1f%% ", float64(i+1)*100.0/float64(len(SymbolList)))
+		fmt.Printf("\b\b\b\b\b\b%.1f%% ", float64(i+1)*100.0/float64(len(*SymbolList)))
 
 		limit := getLimit(symbol, interval)
 
@@ -47,9 +54,9 @@ initialDataLoop:
 
 	}
 	fmt.Printf("\n%s KLines Initialization Done. - %d symbols. average: %.2f, average new: %.2f\n",
-		string(interval), len(SymbolList),
-		float32(totalQueryRet)/float32(len(SymbolList)),
-		float32(totalQueryNewRet)/float32(len(SymbolList)))
+		string(interval), len(*SymbolList),
+		float32(totalQueryRet)/float32(len(*SymbolList)),
+		float32(totalQueryNewRet)/float32(len(*SymbolList)))
 }
 
 func getLimit(symbol string, interval binance.Interval) int{

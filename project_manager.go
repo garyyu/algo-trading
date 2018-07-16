@@ -89,7 +89,7 @@ func autoTradingSum(project *ProjectData, nowPrice float64){
 
 	project.BalanceBase = netBuy + project.InitialAmount
 
-	if project.BalanceBase*nowPrice < 5 * MinOrderTotal {
+	if project.BalanceBase*nowPrice < MinOrderTotal {
 
 		// that means it's already sold! project close.
 		// and ignore trivial remaining balance, probably caused by Binance 'MinOrderTotal' limitation.
@@ -220,12 +220,12 @@ func GetLatestRoi(symbol string, backTimeWindow float64) *RoiData{
 
 	i := 0
 	var s string
-	for i, s = range SymbolList {
+	for i, s = range LivelySymbolList {
 		if symbol == s {
 			break
 		}
 	}
-	if SymbolList[i] != symbol {
+	if LivelySymbolList[i] != symbol {
 		fmt.Println("GetLatestRoi - Fail to find symbol in SymbolList", symbol)
 		return nil
 	}

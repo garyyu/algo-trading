@@ -90,10 +90,32 @@ func main() {
 
 func startMainRoutines(){
 
-	// downloading latest K lines data from Binance server
-	InitialKlines(binance.FiveMinutes)
-	InitialKlines(binance.Hour)
-	InitialKlines(binance.Day)
+	//----- downloading latest K lines data from Binance server	-----//
+	InitialKlines(binance.Day, true)
+	InitialKlines(binance.Hour, true)
+
+	// ignore boring symbols whose 24Hour Volume < 50 BTC
+	const ignoreBoringSymbol = true
+	const ignoreQuoteVolume = 50.0
+
+	if ignoreBoringSymbol{
+
+		LivelySymbolList = nil
+		for _,symbol := range AllSymbolList {
+
+			realCount,quoteVolume := GetLastVolume(symbol, binance.Hour, 24)
+			//fmt.Printf("%s: Last %dH Volume=%f\n", symbol, realCount, quoteVolume)
+
+			if realCount==1 || quoteVolume>=ignoreQuoteVolume {
+				LivelySymbolList = append(LivelySymbolList, symbol)
+			}
+		}
+
+		fmt.Printf("\nTotal Symbols=%d and %d of them ignored tracking because poor volume.\n",
+			len(AllSymbolList), len(AllSymbolList)-len(LivelySymbolList))
+	}
+
+	InitialKlines(binance.FiveMinutes, false)
 
 	// loading K lines into memory from local database
 	InitLocalKlines(binance.FiveMinutes)

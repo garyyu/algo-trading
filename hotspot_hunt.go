@@ -76,9 +76,9 @@ func hotspotMinuteTicker() *time.Ticker {
  */
 func HotspotSearch() {
 
-	hotspotList := make([]HotspotData, len(SymbolList))
+	hotspotList := make([]HotspotData, len(LivelySymbolList))
 
-	for i, symbol := range SymbolList {
+	for i, symbol := range LivelySymbolList {
 
 		klinesMap := SymbolKlinesMapList[i]
 
@@ -138,10 +138,10 @@ func HotspotSearch() {
 	})
 
 	// Saving Top 3 winners on VolumeRatio
-	for q := range SymbolList {
+	for q := range LivelySymbolList {
 
 		// reverse the sequence
-		i := len(SymbolList)-1-q
+		i := len(LivelySymbolList)-1-q
 
 		hotspotList[i].HotRank = i + 1 + 100000
 		if i < 3 {
@@ -156,10 +156,10 @@ func HotspotSearch() {
 	})
 
 	// Saving Top 3 winners on HighLowRatio
-	for q := range SymbolList {
+	for q := range LivelySymbolList {
 
 		// reverse the sequence
-		i := len(SymbolList)-1-q
+		i := len(LivelySymbolList)-1-q
 
 		hotspotList[i].HotRank = i + 1 + 1000
 		if i < 3 {
@@ -174,10 +174,10 @@ func HotspotSearch() {
 	})
 
 	// Saving Top 3 winners on HLRxVR
-	for q := range SymbolList {
+	for q := range LivelySymbolList {
 
 		// reverse the sequence
-		i := len(SymbolList)-1-q
+		i := len(LivelySymbolList)-1-q
 
 		hotspotList[i].HotRank = i + 1
 		if i < 3 {

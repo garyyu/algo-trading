@@ -38,7 +38,7 @@ loop:
 
 			totalQueryRet = 0
 			totalQueryNewRet = 0
-			for _,symbol := range SymbolList {
+			for _,symbol := range AllSymbolList {
 
 				limit := getLimit(symbol, interval)
 

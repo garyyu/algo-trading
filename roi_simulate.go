@@ -105,13 +105,13 @@ func RoiSimulate() {
 	// allocate result 2D array
 	var roiList= make([][]RoiData, len(InvestPeriodList))
 	for i := range roiList {
-		roiList[i] = make([]RoiData, len(SymbolList))
+		roiList[i] = make([]RoiData, len(LivelySymbolList))
 	}
 
 	algoDemoList := getAlgoDemoConf()
 
 	// calculation of ROI
-	for i, symbol := range SymbolList {
+	for i, symbol := range LivelySymbolList {
 
 		klinesMap := SymbolKlinesMapList[i]
 
@@ -168,10 +168,10 @@ func RoiSimulate() {
 			return roiList[j][m].RoiD > roiList[j][n].RoiD
 		})
 
-		for q := range SymbolList {
+		for q := range LivelySymbolList {
 
 			// reverse the sequence
-			i := len(SymbolList)-1-q
+			i := len(LivelySymbolList)-1-q
 
 			roiList[j][i].RoiRank = i + 1
 			if i < 10{
@@ -187,12 +187,12 @@ func RoiSimulate() {
 		}
 
 		// Top 3 losers
-		for i := len(SymbolList)-3; i < len(SymbolList); i++ {
+		for i := len(LivelySymbolList)-3; i < len(LivelySymbolList); i++ {
 			if i<0 {
 				continue
 			}
 
-			roiList[j][i].RoiRank = i - len(SymbolList)
+			roiList[j][i].RoiRank = i - len(LivelySymbolList)
 			//fmt.Printf("RoiTop3Loser - %v\n", roiList[j][i])
 
 			// Insert to Database

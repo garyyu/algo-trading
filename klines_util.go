@@ -138,3 +138,27 @@ func GetOpenTime(symbol string, interval binance.Interval) time.Time {
 	return openTime
 }
 
+/*
+ * Get database kline last N Volume Sum from local database
+ */
+func GetLastVolume(symbol string, interval binance.Interval, N int) (int,float64) {
+
+	query := "SELECT COUNT(id),SUM(u.QuoteAssetVolume) as QuoteVolume FROM"+
+		" (SELECT * FROM ohlc_"+ string(interval) + " where Symbol='"+ symbol +
+		"' order by OpenTime desc limit "+ fmt.Sprint(N) +
+		") as u;"
+
+	row := DBCon.QueryRow(query)
+	//fmt.Printf("GetLastVolume - Query=%s\n", query)
+
+	Count := 0
+	QuoteVolume := 0.0
+	err := row.Scan(&Count, &QuoteVolume)
+	if err != nil && err != sql.ErrNoRows {
+		level.Error(logger).Log("GetLastVolume - row.Scan Err:", err)
+	}
+
+	return Count, QuoteVolume
+}
+
+

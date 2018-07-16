@@ -1,6 +1,8 @@
 package main
 
-var SymbolList = [...]string{
+var LivelySymbolList []string
+
+var AllSymbolList = []string{
 
 	/* Volume: $[10M - 57M] */
 
@@ -27,7 +29,7 @@ var SymbolList = [...]string{
 	"ZILBTC",
 	"NCASHBTC",
 	"IOTABTC",
-	"NPXSBTC",
+	//"NPXSBTC",	// remove this boring one
 
 	/* Volume: $[5M - 10M] */
 
@@ -80,15 +82,81 @@ var SymbolList = [...]string{
 	"AIONBTC",
 	"SUBBTC",
 	"DNTBTC",
-	//"TNBBTC",	// remove this boring one
+	//"TNBBTC",		// remove this boring one
 	"STEEMBTC",
 	"BTSBTC",
 	"BCPTBTC",
 	"INSBTC",
 	"NXSBTC",
-	"LENDBTC",
+	//"LENDBTC",	// remove this boring one
 	"OSTBTC",
 	"BTGBTC",
+
+	/* Volume: < 1.3M */
+
+	"BLZBTC",
+	"GNTBTC",
+	"ASTBTC",
+	"CHATBTC",
+	"AGIBTC",
+	"CVCBTC",
+	"GASBTC",
+	"RDNBTC",
+	"TNTBTC",
+	"LRCBTC",
+	"MTLBTC",
+	"BATBTC",
+	"LSKBTC",
+	"NULSBTC",
+	"QSPBTC",
+	"WPRBTC",
+	"PPTBTC",
+	"DATABTC",
+	"MDABTC",
+	"FUNBTC",
+	"WINGSBTC",
+	"ZENBTC",
+	"ENJBTC",
+	"VIBBTC",
+	"DGDBTC",
+	"CNDBTC",
+	"NEBLBTC",
+	"MCOBTC",
+	"HSRBTC",
+	"MANABTC",
+	"RPXBTC",
+	"GRSBTC",
+	"YOYOBTC",
+	"REPBTC",
+	"KNCBTC",
+	"MTHBTC",
+	"SALTBTC",
+	"KMDBTC",
+	"SYSBTC",
+	"TRIGBTC",
+	"XZCBTC",
+	"LINKBTC",
+	"CDTBTC",
+	"APPCBTC",
+	"REQBTC",
+	"STORJBTC",
+	"AMBBTC",
+	"GXSBTC",
+	"SNMBTC",
+	"ARKBTC",
+	"PIVXBTC",
+	"BNTBTC",
+	"FUELBTC",
+	"ADXBTC",
+	"RLCBTC",
+	"DLTBTC",
+	"WABIBTC",
+	"ICNBTC",
+	"OAXBTC",
+	"MODBTC",
+	"VIBEBTC",
+	"SNGLSBTC",
+	"VIABTC",
 }
 
 type Precision struct {

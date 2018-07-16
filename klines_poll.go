@@ -38,7 +38,7 @@ func InitLocalKlines(interval binance.Interval) {
 				fmt.Sprint(MaxKlinesMapSize)
 
 	// Initialize the global 'SymbolKlinesMapList'
-	totalSymbols := len(SymbolList)
+	totalSymbols := len(LivelySymbolList)
 	SymbolKlinesMapList = make([]map[int64]KlineRo, totalSymbols)
 	for i:=0; i<totalSymbols; i++ {
 		SymbolKlinesMapList[i] = make(map[int64]KlineRo, MaxKlinesMapSize)
@@ -48,7 +48,7 @@ func InitLocalKlines(interval binance.Interval) {
 	var totalQueryRet = 0
 
 	initialDataLoop:
-	for i,symbol := range SymbolList {
+	for i,symbol := range LivelySymbolList {
 
 		select {
 		case _ = <- routinesExitChan:
@@ -58,7 +58,7 @@ func InitLocalKlines(interval binance.Interval) {
 			time.Sleep(1 * time.Millisecond)
 		}
 
-		fmt.Printf("\b\b\b\b\b\b%.1f%% ", float64(i+1)*100.0/float64(len(SymbolList)))
+		fmt.Printf("\b\b\b\b\b\b%.1f%% ", float64(i+1)*100.0/float64(len(LivelySymbolList)))
 
 		rows, err := DBCon.Query(sqlStatement, symbol)
 
@@ -90,8 +90,8 @@ func InitLocalKlines(interval binance.Interval) {
 	}
 
 	fmt.Printf("\n%s KLines Loading Done. - %d symbols. average: %.2f\t%s\n",
-		string(interval), len(SymbolList),
-		float32(totalQueryRet)/float32(len(SymbolList)),
+		string(interval), len(LivelySymbolList),
+		float32(totalQueryRet)/float32(len(LivelySymbolList)),
 		time.Now().Format("2006-01-02 15:04:05.004005683"))
 }
 
@@ -121,7 +121,7 @@ func RefreshKlines(interval binance.Interval) {
 				FROM ohlc_` + string(interval) + " WHERE Symbol=? order by OpenTime desc limit 2;"
 
 	var totalQueryRet = 0
-	for i,symbol := range SymbolList {
+	for i,symbol := range LivelySymbolList {
 
 		rows, err := DBCon.Query(sqlStatement, symbol)
 

@@ -42,7 +42,7 @@ loop:
 
 			totalQueryRet = 0
 			totalQueryNewRet = 0
-			for _,symbol := range SymbolList {
+			for _,symbol := range LivelySymbolList {
 
 				limit := getLimit(symbol, interval)
 

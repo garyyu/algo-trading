@@ -85,7 +85,7 @@ func QueryAccount() {
 		historyRemain := GetHistoryRemain(asset)
 
 		// ignore trivial balance
-		if highestBid.Price * (balance.Free+balance.Locked) < 5 * MinOrderTotal {
+		if highestBid.Price * (balance.Free+balance.Locked) < MinOrderTotal {
 
 			// update trivial balance into history_remain table
 			if !FloatEquals(historyRemain.Amount, balance.Free+balance.Locked){

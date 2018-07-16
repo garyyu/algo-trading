@@ -69,7 +69,7 @@ loop:
 			// for full price list, polling in lower interval: 30s
 			lowerIntervalCount += 1
 			if lowerIntervalCount >= 10 {
-				for _, symbol := range SymbolList {
+				for _, symbol := range LivelySymbolList {
 					getOrderBook(symbol, 10)
 				}
 			}
