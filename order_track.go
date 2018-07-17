@@ -152,6 +152,12 @@ func MatchProjectForOrder(project *ProjectData){
 	amount := 0.0
 	invest := 0.0
 
+	if project.Symbol == "BNBBTC" {
+		amount -= project.FeeBNB
+	} else if project.FeeBNB ==0 {
+		amount -= project.FeeEmbed
+	}
+
 	ordersNum := 0
 	for _,order := range orderList {
 		ordersNum += 1
