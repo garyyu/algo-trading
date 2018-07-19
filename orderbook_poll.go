@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"bitbucket.org/garyyu/algo-trading/go-binance"
+	"sync"
 )
 
 type ObType int
@@ -29,7 +30,8 @@ type OBData struct {
 /*
  *  Main Routine for OrderBook
  */
-func OrderBookRoutine(){
+func OrderBookRoutine(wg *sync.WaitGroup){
+	defer wg.Done()
 
 	//time.Sleep(15 * time.Second)
 

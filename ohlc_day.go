@@ -4,12 +4,14 @@ import (
 	"time"
 	"fmt"
 	"bitbucket.org/garyyu/algo-trading/go-binance"
+	"sync"
 )
 
 /*
  * Daily KLines
  */
-func DailyOhlcRoutine() {
+func DailyOhlcRoutine(wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	interval := binance.Day
 

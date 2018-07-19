@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"time"
 	"bitbucket.org/garyyu/algo-trading/go-binance"
+	"sync"
 )
 
 var (
@@ -71,7 +72,10 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	go startMainRoutines()
+	wg := new(sync.WaitGroup)
+
+	wg.Add(1)
+	go startMainRoutines(wg)
 
 	fmt.Println("main is runing and waiting for interrupt")
 	<-interrupt
@@ -79,16 +83,17 @@ func main() {
 
 	// notify all routines exit.
 	close(routinesExitChan)
-	time.Sleep(2 * time.Second)		// wait for sub-routines exit
+	fmt.Println("please waiting for a few seconds for sub-routines exit...")
+	wg.Wait()
 
 	cancelCtx()
-	fmt.Println("waiting for signal")
 
 	fmt.Println("main exited.")
 	return
 }
 
-func startMainRoutines(){
+func startMainRoutines(wg *sync.WaitGroup){
+	defer wg.Done()
 
 	//----- downloading latest K lines data from Binance server	-----//
 	InitialKlines(binance.Day, true)
@@ -122,19 +127,27 @@ func startMainRoutines(){
 
 	//----- 					all routines 					-----//
 
-	go OrderBookRoutine()
+	wg.Add(1)
+	go OrderBookRoutine(wg)
 
-	go Ohlc5MinRoutine()
-	go HourlyOhlcRoutine()
-	go DailyOhlcRoutine()
+	wg.Add(1)
+	go Ohlc5MinRoutine(wg)
+
+	wg.Add(1)
+	go HourlyOhlcRoutine(wg)
+
+	wg.Add(1)
+	go DailyOhlcRoutine(wg)
 
 	// now it's good time to start ROI analysis routine
-	//go RoiRoutine()
+	//go RoiRoutine(wg)
 
-	go HotspotRoutine()
+	wg.Add(1)
+	go HotspotRoutine(wg)
 
 	// also start project manager
-	go ProjectRoutine()
+	wg.Add(1)
+	go ProjectRoutine(wg)
 
 	//-----   repeat loading from database for latest K lines	-----//
 
@@ -145,7 +158,9 @@ func startMainRoutines(){
 			break loop
 
 		default:
+			Klines5mMutex.Lock()
 			RefreshKlines(binance.FiveMinutes)
+			Klines5mMutex.Unlock()
 			time.Sleep(15 * time.Second)
 		}
 	}

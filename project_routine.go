@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"time"
+	"sync"
 )
 
 /*
  *  Main Routine for Project Management
  */
-func ProjectRoutine(){
+func ProjectRoutine(wg *sync.WaitGroup){
+	defer wg.Done()
 
 	fmt.Printf("ProjectTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 

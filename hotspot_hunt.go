@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"math"
+	"sync"
 )
 
 type HotspotData struct {
@@ -22,7 +23,8 @@ type HotspotData struct {
 /*
  *  Main Routine for Hotlist Hunting
  */
-func HotspotRoutine(){
+func HotspotRoutine(wg *sync.WaitGroup){
+	defer wg.Done()
 
 	fmt.Printf("HotspotTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
@@ -78,6 +80,8 @@ func HotspotSearch() {
 
 	hotspotList := make([]HotspotData, len(LivelySymbolList))
 
+	Klines5mMutex.RLock()
+
 	for i, symbol := range LivelySymbolList {
 
 		klinesMap := SymbolKlinesMapList[i]
@@ -131,6 +135,8 @@ func HotspotSearch() {
 
 		hotspotList = append(hotspotList, hotspotData)
 	}
+
+	Klines5mMutex.RUnlock()
 
 	// Sort them on VolumeRatio
 	sort.Slice(hotspotList, func(m, n int) bool {

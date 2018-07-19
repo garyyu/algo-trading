@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 )
 
 const MaxKlinesMapSize = 1440		// for 5minutes klines, that's 5 days.
 
 var (
+	Klines5mMutex sync.RWMutex
 	SymbolKlinesMapList []map[int64]KlineRo
 	InvestPeriodList = [...]int{
 		12,		// 1 Hour
@@ -41,7 +43,8 @@ type RoiData struct {
 /*
  *  Main Routine for ROI Simulation
  */
-func RoiRoutine(){
+func RoiRoutine(wg *sync.WaitGroup){
+	defer wg.Done()
 
 	fmt.Printf("RoiAnTick Start: \t%s\n\n", time.Now().Format("2006-01-02 15:04:05.004005683"))
 
@@ -98,7 +101,7 @@ func roiMinuteTicker() *time.Ticker {
 /*
  * ROI (Return Of Invest) Simulation
  */
-func RoiSimulate() {
+func RoiSimulate(){
 
 	HuntList :=  make(map[string]bool)
 
@@ -111,6 +114,9 @@ func RoiSimulate() {
 	algoDemoList := getAlgoDemoConf()
 
 	// calculation of ROI
+
+	Klines5mMutex.RLock()
+
 	for i, symbol := range LivelySymbolList {
 
 		klinesMap := SymbolKlinesMapList[i]
@@ -156,6 +162,8 @@ func RoiSimulate() {
 			//	symbol, roiData.Klines, N)
 		}
 	}
+
+	Klines5mMutex.RUnlock()
 
 	// RoiRank the ROI, to get Top 3 winners and Top 3 losers
 	for p := range InvestPeriodList {
