@@ -60,7 +60,7 @@ func main() {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	// use second return value for cancelling request
 	binanceService := binance.NewAPIService(
-		"https://www.binance.com",
+		"https://api.binance.com",
 		os.Getenv("BINANCE_APIKEY"),
 		hmacSigner,
 		logger,
