@@ -6,16 +6,16 @@ This project is only for cryptocurrency trading for example BTC, ETH, BNB and so
 
 ## Getting started
 
-- Get the code and build
+### Get the code and build
 ```shell
 git clone https://github.com/garyyu/algo-trading.git
 cd algo-trading
 go build
 ```
 
-- Before running
+### Before running
 
-1. Some environment variables have to be set before running this `algo-trading`
+#### Some environment variables have to be set before running this `algo-trading`
 
 Propose to create a file named as `binance.env` and write these privacy info in it. But remember to **keep this file safe**!
 
@@ -31,7 +31,7 @@ export BINANCE_DB_PWD="your_db_password"
 ```
 You can find your binance APIKEY and SECRET in your Binance website.
 
-2. MySQL database preparation
+#### MySQL database preparation
 
 Please read some MySQL basic usage document firstly if you're new to database.
 
@@ -43,7 +43,7 @@ mysql -uYour_DB_Username -pYour_DB_Password -Dbinance < db/*.sql
 ```
 This will set up all the DB tables. 
 
-3. Ready
+#### Ready to Run
 After setting up all above well, and starting your MySQL database service, then you can run `algo-trading` now:
 ```shell
 souce ~/binance.env
