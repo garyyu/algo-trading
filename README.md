@@ -1,5 +1,7 @@
 # Algorithm Trading with Binance API
 
+[![Join the chat at https://gitter.im/algo-trading/Lobby](https://badges.gitter.im/algo-trading/Lobby.svg)](https://gitter.im/algo-trading/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Algorithmic trading (automated trading, black-box trading or simply algo-trading) is the process of using computers programed to follow a defined set of instructions (an algorithm) for placing a trade in order to generate profits at a speed and frequency that is impossible for a human trader. The defined sets of rules are based on timing, price, quantity or any mathematical model. Apart from profit opportunities for the trader, algo-trading makes markets more liquid and makes trading more systematic by ruling out the impact of human emotions on trading activities. 
 
 This project is only for cryptocurrency trading for example BTC, ETH, BNB and so on. For the moment, it's using Binance API to do this, and plan to support other exchanges also.
