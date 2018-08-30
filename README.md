@@ -10,6 +10,7 @@ This project is only for cryptocurrency trading for example BTC, ETH, BNB and so
 ```shell
 git clone https://github.com/garyyu/algo-trading.git
 cd algo-trading
+go get
 go build
 ```
 
